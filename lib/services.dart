@@ -128,4 +128,31 @@ await secondaryApp.delete();
       }
     }
   }
+
+  static Stream<QuerySnapshot> get packagesStream =>
+      db.collection('packages').orderBy('order').snapshots();
+
+  static Future<void> addPackage({
+    required String name,
+    required int price,
+    required int order,
+  }) async {
+    await db.collection('packages').add({
+      'name': name,
+      'price': price,
+      'order': order,
+      'isActive': true,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  static Future<void> updatePackage(
+      String id, Map<String, dynamic> data) async {
+    await db.collection('packages').doc(id).update(data);
+  }
+
+  static Future<void> deletePackage(String id) async {
+    await db.collection('packages').doc(id).delete();
+  }
+
 }

@@ -6,6 +6,7 @@ import 'pages/customer_detail.dart';
 import 'pages/customers.dart';
 import 'pages/dashboard.dart';
 import 'pages/notices.dart';
+import 'pages/packages.dart';
 import 'pages/payments.dart';
 import 'services.dart';
 import 'theme.dart';
@@ -18,7 +19,7 @@ class AdminShell extends StatefulWidget {
 
 class _AdminShellState extends State<AdminShell> {
   int _page = 0;
-  final _titles = ['ড্যাশবোর্ড', 'গ্রাহক', 'পেমেন্ট', 'নোটিশ'];
+  final _titles = ['ড্যাশবোর্ড', 'গ্রাহক', 'পেমেন্ট', 'নোটিশ', 'প্যাকেজ'];
 
   @override
   Widget build(BuildContext context) {
