@@ -1,0 +1,280 @@
+name: Add Packages to JS Admin v2
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch index.html - add Packages nav
+        run: |
+          python3 << 'ENDPY'
+          with open('docs/index.html') as f:
+              c = f.read()
+
+          if 'data-page="packages"' in c:
+              print("Already added — skipping")
+          else:
+              # Try multiple patterns to find the notices nav button
+              patterns = [
+                  ('<button class="nav-item" data-page="notices">\n          <span class="nav-icon">&#128226;</span><span>Notices</span>\n        </button>',
+                   '<button class="nav-item" data-page="notices">\n          <span class="nav-icon">&#128226;</span><span>Notices</span>\n        </button>\n        <button class="nav-item" data-page="packages">\n          <span class="nav-icon">&#128230;</span><span>Packages</span>\n        </button>'),
+              ]
+              replaced = False
+              for old, new in patterns:
+                  if old in c:
+                      c = c.replace(old, new)
+                      replaced = True
+                      print("Nav item added via exact pattern")
+                      break
+
+              if not replaced:
+                  # Try via regex: find notices button and insert packages after
+                  import re
+                  pattern = re.compile(
+                      r'(<button class="nav-item" data-page="notices">.*?</button>)',
+                      re.DOTALL,
+                  )
+                  match = pattern.search(c)
+                  if match:
+                      notices_btn = match.group(1)
+                      packages_btn = '\n        <button class="nav-item" data-page="packages">\n          <span class="nav-icon">&#128230;</span><span>Packages</span>\n        </button>'
+                      c = c.replace(notices_btn, notices_btn + packages_btn, 1)
+                      replaced = True
+                      print("Nav item added via regex")
+
+              if not replaced:
+                  print("ERROR: Could not find notices button")
+                  exit(1)
+
+          with open('docs/index.html','w') as f:
+              f.write(c)
+
+          # Verify
+          if 'data-page="packages"' in c:
+              print("SUCCESS: packages nav found")
+          ENDPY
+
+      - name: Patch app.js - add Packages page + logic
+        run: |
+          python3 << 'ENDPY'
+          with open('docs/app.js') as f:
+              c = f.read()
+
+          # Skip if already added
+          if 'renderPackages' in c:
+              print("Already added — skipping")
+          else:
+              # Add packages to PAGES - English version
+              import re
+
+              # Find the PAGES object
+              pages_pattern = re.compile(
+                  r'(var PAGES = \{[^}]*?notices:\s*\{title:\s*[^}]*?\}\s*)\};',
+                  re.DOTALL,
+              )
+              match = pages_pattern.search(c)
+              if match:
+                  c = c[:match.end(1)] + ",\n            packages:  {title: 'Packages', render: renderPackages}\n          };" + c[match.end():]
+                  print("PAGES updated")
+              else:
+                  print("PAGES pattern not found, trying alternative")
+                  # Try with Bengali
+                  if "notices:   {title: 'নোটিশ', render: renderNotices}" in c:
+                      c = c.replace(
+                          "notices:   {title: 'নোটিশ', render: renderNotices}",
+                          "notices:   {title: 'নোটিশ', render: renderNotices},\n            packages:  {title: 'প্যাকেজ', render: renderPackages}",
+                      )
+                      print("PAGES updated via Bengali pattern")
+                  elif "notices:   {title: 'Notices', render: renderNotices}" in c:
+                      c = c.replace(
+                          "notices:   {title: 'Notices', render: renderNotices}",
+                          "notices:   {title: 'Notices', render: renderNotices},\n            packages:  {title: 'Packages', render: renderPackages}",
+                      )
+                      print("PAGES updated via English pattern")
+
+              # Add packages snapshot listener
+              notices_sub = "unsubs.push(db.collection('notices').onSnapshot(function(){\n              if(currentPage==='notices')renderNotices();\n            },function(e){console.error(e)}));"
+              if notices_sub in c and "db.collection('packages').onSnapshot" not in c:
+                  c = c.replace(
+                      notices_sub,
+                      notices_sub + "\n            unsubs.push(db.collection('packages').onSnapshot(function(){\n              if(currentPage==='packages')renderPackages();\n            },function(e){console.error(e)}));",
+                  )
+                  print("Packages listener added")
+
+              # Packages code
+              packages_code = """
+
+          // ============ PACKAGES ============
+          var pkgCache = [];
+
+          function renderPackages(){
+            var body = $('#pageBody');
+            body.innerHTML = '<div class="empty">Loading...</div>';
+            db.collection('packages').get()
+              .then(function(snap){
+                pkgCache = snap.docs.map(function(d){
+                  var o = {id: d.id};
+                  var x = d.data();
+                  for (var k in x) o[k] = x[k];
+                  return o;
+                });
+                pkgCache.sort(function(a,b){return (a.order||0) - (b.order||0);});
+                paintPackages();
+              })
+              .catch(function(e){
+                console.error('packages load failed:', e);
+                body.innerHTML = '<div class="empty">Failed to load packages</div>';
+              });
+          }
+
+          function paintPackages(){
+            var body = $('#pageBody');
+            body.innerHTML =
+              '<div class="toolbar" style="justify-content:space-between;flex-wrap:wrap">'+
+                '<div>'+
+                  '<div style="font-size:16px;font-weight:700">Manage Packages</div>'+
+                  '<div style="font-size:12.5px;color:var(--grey);margin-top:2px">Changes here appear instantly in the customer app</div>'+
+                '</div>'+
+                '<button id="addPkgBtn" class="btn btn-primary" type="button">+ New Package</button>'+
+              '</div>'+
+              '<div id="pkgList" style="margin-top:16px"></div>';
+
+            var list = $('#pkgList');
+            if (pkgCache.length === 0){
+              list.innerHTML = '<div class="empty">No packages yet. Tap "New Package" to add.</div>';
+            } else {
+              list.innerHTML = pkgCache.map(function(p){
+                var active = p.isActive !== false;
+                return '<div class="card" style="display:flex;align-items:center;gap:14px;padding:16px;margin-bottom:10px">'+
+                  '<div class="stat-icon stat-info" style="width:48px;height:48px;font-size:22px">&#128225;</div>'+
+                  '<div style="flex:1;min-width:0">'+
+                    '<div style="display:flex;align-items:center;gap:8px">'+
+                      '<div style="font-size:16px;font-weight:700">'+esc(p.name||'')+'</div>'+
+                      (active ? '' : '<span class="pill pill-info">INACTIVE</span>')+
+                    '</div>'+
+                    '<div style="font-family:Poppins;font-size:14px;font-weight:700;color:var(--primary);margin-top:2px">৳'+(p.price||0)+' per month</div>'+
+                  '</div>'+
+                  '<button class="btn btn-outline pkg-edit" data-id="'+p.id+'" type="button" style="padding:8px 14px">Edit</button>'+
+                  '<button class="btn btn-danger pkg-del" data-id="'+p.id+'" data-name="'+esc(p.name||'')+'" type="button" style="padding:8px 14px">Delete</button>'+
+                '</div>';
+              }).join('');
+            }
+
+            $('#addPkgBtn').onclick = function(){ openAddPackage(null); };
+            $$('.pkg-edit').forEach(function(b){
+              b.onclick = function(){
+                var id = b.dataset.id;
+                var p = pkgCache.filter(function(x){return x.id===id})[0];
+                if (p) openAddPackage(p);
+              };
+            });
+            $$('.pkg-del').forEach(function(b){
+              b.onclick = function(){
+                var id = b.dataset.id;
+                var name = b.dataset.name;
+                if (!confirm('Delete package "'+name+'"?')) return;
+                db.collection('packages').doc(id).delete()
+                  .then(function(){
+                    toast('Package deleted', 'success');
+                    renderPackages();
+                  })
+                  .catch(function(e){
+                    console.error(e);
+                    toast('Delete failed', 'error');
+                  });
+              };
+            });
+          }
+
+          function openAddPackage(existing){
+            var isEdit = existing !== null;
+            var name = isEdit ? (existing.name||'') : '';
+            var price = isEdit ? (existing.price||525) : 525;
+            var order = isEdit ? (existing.order||1) : (pkgCache.length + 1);
+            var active = isEdit ? (existing.isActive !== false) : true;
+
+            openModal(
+              '<div class="modal-title">'+(isEdit?'Edit Package':'New Package')+'</div>'+
+              '<div class="form-row"><label>Speed (e.g. 20 Mbps)</label><input id="pkgName" value="'+esc(name)+'" placeholder="20 Mbps"></div>'+
+              '<div class="form-row"><label>Monthly Price (৳)</label><input id="pkgPrice" type="number" value="'+price+'"></div>'+
+              '<div class="form-row"><label>Display Order</label><input id="pkgOrder" type="number" value="'+order+'"></div>'+
+              '<div class="form-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">'+
+                '<input type="checkbox" id="pkgActive" '+(active?'checked':'')+' style="width:auto"> Active (visible to customers)'+
+              '</label></div>'+
+              '<div class="modal-actions">'+
+                '<button class="btn btn-outline" id="pkgCancel" type="button">Cancel</button>'+
+                '<button class="btn btn-primary" id="pkgSave" type="button">'+(isEdit?'Save':'Add')+'</button>'+
+              '</div>'
+            );
+
+            $('#pkgCancel').onclick = closeModal;
+            $('#pkgSave').onclick = function(){
+              var n = $('#pkgName').value.trim();
+              if (!n) return toast('Enter speed name','error');
+              var data = {
+                name: n,
+                price: Number($('#pkgPrice').value) || 0,
+                order: Number($('#pkgOrder').value) || 1,
+                isActive: $('#pkgActive').checked
+              };
+              var btn = $('#pkgSave');
+              btn.disabled = true;
+              btn.textContent = 'Saving...';
+              var promise = isEdit
+                ? db.collection('packages').doc(existing.id).update(data)
+                : db.collection('packages').add(Object.assign({}, data, {createdAt: firebase.firestore.FieldValue.serverTimestamp()}));
+
+              promise.then(function(){
+                closeModal();
+                toast(isEdit ? 'Package updated' : 'Package added', 'success');
+                renderPackages();
+              }).catch(function(e){
+                console.error(e);
+                toast('Save failed: '+e.message, 'error');
+                btn.disabled = false;
+                btn.textContent = isEdit ? 'Save' : 'Add';
+              });
+            };
+          }
+          """
+
+              # Insert before final console.log
+              marker = "console.log('[JAJ Net Admin]"
+              idx = c.rfind(marker)
+              if idx > 0:
+                  c = c[:idx] + packages_code + '\n          ' + c[idx:]
+                  print("Packages code inserted")
+              else:
+                  c = c + packages_code
+                  print("Packages code appended")
+
+              with open('docs/app.js', 'w') as f:
+                  f.write(c)
+          ENDPY
+
+      - name: Verify
+        run: |
+          echo "=== Nav in HTML ==="
+          grep "data-page" docs/index.html || echo "(no match)"
+          echo ""
+          echo "=== Packages functions in JS ==="
+          grep -c "renderPackages" docs/app.js || echo "0"
+          grep -c "openAddPackage" docs/app.js || echo "0"
+          echo ""
+          echo "=== Done ==="
+          echo "All steps complete"
+
+      - name: Commit
+        run: |
+          git config user.name "JAJ Net Bot"
+          git config user.email "bot@jajnet.local"
+          git add docs/
+          git commit -m "Add Packages management to JS admin (v2)" || echo "nothing to commit"
+          git push
