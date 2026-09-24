@@ -34,7 +34,7 @@ jobs:
         run: flutter pub get
 
       - name: Build Web
-        run: flutter build web --release --base-href /jajnet-admin/
+        run: flutter build web --release --base-href /jajnet-admin/ --web-renderer html
 
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
