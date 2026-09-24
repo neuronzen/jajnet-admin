@@ -11,7 +11,20 @@
 </head>
 <body>
 
-<div id="loginScreen" class="login-screen">
+<!-- LOADING -->
+<div id="loadingScreen" class="loading-screen">
+  <div class="loading-logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+      <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+      <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+      <line x1="12" y1="20" x2="12.01" y2="20"/>
+    </svg>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="login-screen hidden">
   <div class="login-card">
     <div class="login-logo">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
@@ -40,6 +53,7 @@
   </div>
 </div>
 
+<!-- MAIN APP -->
 <div id="mainApp" class="main-app hidden">
   <aside id="sidebar" class="sidebar">
     <div class="sidebar-brand">
@@ -58,26 +72,21 @@
     </div>
     <nav class="sidebar-nav">
       <button class="nav-item active" data-page="dashboard">
-        <span class="nav-icon">&#9638;</span>
-        <span>ড্যাশবোর্ড</span>
+        <span class="nav-icon">&#9638;</span><span>ড্যাশবোর্ড</span>
       </button>
       <button class="nav-item" data-page="customers">
-        <span class="nav-icon">&#128101;</span>
-        <span>গ্রাহক</span>
+        <span class="nav-icon">&#128101;</span><span>গ্রাহক</span>
       </button>
       <button class="nav-item" data-page="payments">
-        <span class="nav-icon">&#128179;</span>
-        <span>পেমেন্ট</span>
+        <span class="nav-icon">&#128179;</span><span>পেমেন্ট</span>
         <span id="pendingBadge" class="badge hidden">0</span>
       </button>
       <button class="nav-item" data-page="notices">
-        <span class="nav-icon">&#128226;</span>
-        <span>নোটিশ</span>
+        <span class="nav-icon">&#128226;</span><span>নোটিশ</span>
       </button>
     </nav>
     <button id="logoutBtn" class="logout-btn">
-      <span class="nav-icon">&#10162;</span>
-      <span>লগআউট</span>
+      <span class="nav-icon">&#10162;</span><span>লগআউট</span>
     </button>
   </aside>
 
