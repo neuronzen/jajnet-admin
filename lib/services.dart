@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 class AdminService {
   static final auth = FirebaseAuth.instance;
@@ -76,5 +77,55 @@ class AdminService {
 
   static Future<void> deleteNotice(String id) async {
     await db.collection('notices').doc(id).delete();
+  }
+
+  static Future<String> createCustomer({
+    required String name,
+    required String phone,
+    required String email,
+    required String password,
+    required String address,
+    required String package,
+    required int packagePrice,
+    required int dueAmount,
+    required String status,
+  }) async {
+    const secondaryName = 'admin_creator';
+    FirebaseApp? secondaryApp;
+    try {
+      try {
+        secondaryApp = Firebase.app(secondaryName);
+      } catch (_) {
+        secondaryApp = await Firebase.initializeApp(
+name: secondaryName,
+options: Firebase.app().options,
+        );
+      }
+      final secondaryAuth =
+FirebaseAuth.instanceFor(app: secondaryApp);
+      final cred = await secondaryAuth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      await db.collection('users').doc(cred.user!.uid).set({
+        'name': name,
+        'phone': phone,
+        'email': email,
+        'address': address,
+        'package': package,
+        'packagePrice': packagePrice,
+        'dueAmount': dueAmount,
+        'status': status,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      await secondaryAuth.signOut();
+      return cred.user!.uid;
+    } finally {
+      if (secondaryApp != null) {
+        try {
+await secondaryApp.delete();
+        } catch (_) {}
+      }
+    }
   }
 }
