@@ -629,4 +629,183 @@ var n = rawSpeed.replace(/\s*Mbps\s*$/i, '') + ' Mbps';
     });
   };
           }
+// ============ PAYMENT ACTIONS v7 ============
+
+async function verifyPaymentNew(id){
+  var payRef = db.collection('payments').doc(id);
+  try {
+    var paySnap = await payRef.get();
+    if (!paySnap.exists) return toast('Payment not found', 'error');
+    var pay = paySnap.data();
+    
+    if (pay.status !== 'pending') {
+      return toast('This payment is already ' + pay.status, 'error');
+    }
+    
+    var userRef = db.collection('users').doc(pay.userId);
+    var userSnap = await userRef.get();
+    if (!userSnap.exists) return toast('Customer not found', 'error');
+    var currentDue = Number(userSnap.data().dueAmount || 0);
+    var amount = Number(pay.amount || 0);
+    var custName = userSnap.data().name || 'Unknown';
+    
+    if (amount > currentDue) {
+      return toast('Payment ৳' + amount + ' exceeds due ৳' + currentDue + '. Reject instead.', 'error');
+    }
+    
+    var newDue = currentDue - amount;
+    
+    if (!confirm('Verify payment of ৳' + amount + ' from ' + custName + '?\n\nCurrent due: ৳' + currentDue + '\nNew due: ৳' + newDue)) {
+      return;
+    }
+    
+    var adminEmail = auth.currentUser ? auth.currentUser.email : 'unknown';
+    
+    await db.runTransaction(async function(tx){
+      var p = await tx.get(payRef);
+      if (p.data().status !== 'pending') {
+        throw new Error('Already processed');
+      }
+      var u = await tx.get(userRef);
+      var cd = Number(u.data().dueAmount || 0);
+      var nd = cd - Number(p.data().amount || 0);
+      
+      tx.update(payRef, {
+        status: 'verified',
+        verifiedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        verifiedBy: adminEmail,
+        dueAfter: nd
+      });
+      tx.update(userRef, {
+        dueAmount: nd,
+        lastPaymentDate: firebase.firestore.FieldValue.serverTimestamp(),
+        lastPaymentAmount: Number(p.data().amount || 0)
+      });
+    });
+    
+    toast('Verified. Due updated to ৳' + newDue, 'success');
+    if (currentPage === 'payments') renderPayments();
+    else if (currentPage === 'dashboard') renderDashboard();
+    else if (currentPage === 'customers') renderCustomers();
+  } catch (e) {
+    console.error('verify error:', e);
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+async function rejectPaymentNew(id){
+  var reason = prompt('Reason for rejection?', 'Invalid TrxID');
+  if (reason === null) return;
+  if (!reason.trim()) return toast('Please provide a reason', 'error');
+  
+  try {
+    await db.collection('payments').doc(id).update({
+      status: 'rejected',
+      rejectedReason: reason.trim(),
+      rejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      rejectedBy: auth.currentUser ? auth.currentUser.email : 'unknown'
+    });
+    toast('Payment rejected', 'error');
+    if (currentPage === 'payments') renderPayments();
+  } catch (e) {
+    console.error(e);
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+function collectPayment(customerId, customerName, currentDue){
+  var method = 'Cash';
+  var trxId = '';
+  
+  openModal(
+    '<div class="modal-title">Collect Payment</div>' +
+    '<div class="form-row"><label>Customer</label><input value="' + esc(customerName) + '" disabled style="opacity:.7"></div>' +
+    '<div class="form-row"><label>Current Due (৳)</label><input value="' + currentDue + '" disabled style="opacity:.7"></div>' +
+    '<div class="form-row"><label>Amount Collected (৳)</label><input id="cpAmount" type="number" value="' + currentDue + '" placeholder="0"></div>' +
+    '<div class="form-row"><label>Payment Method</label><select id="cpMethod">' +
+      '<option value="Cash">Cash</option>' +
+      '<option value="bKash">bKash</option>' +
+      '<option value="Nagad">Nagad</option>' +
+      '<option value="Rocket">Rocket</option>' +
+      '<option value="Bank">Bank</option>' +
+    '</select></div>' +
+    '<div class="form-row"><label>Transaction ID (optional for Cash)</label><input id="cpTrx" placeholder="For bKash/Nagad/Rocket"></div>' +
+    '<div class="form-row"><label>Months (for record)</label><input id="cpMonths" type="number" value="1"></div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-outline" id="cpCancel" type="button">Cancel</button>' +
+      '<button class="btn btn-primary" id="cpSave" type="button">Save Payment</button>' +
+    '</div>'
+  );
+  
+  $('#cpCancel').onclick = closeModal;
+  $('#cpSave').onclick = async function(){
+    var amt = Number($('#cpAmount').value) || 0;
+    var mtd = $('#cpMethod').value;
+    var trx = $('#cpTrx').value.trim();
+    var mon = Number($('#cpMonths').value) || 1;
+    
+    if (amt <= 0) return toast('Enter valid amount', 'error');
+    if (amt > currentDue) return toast('Amount exceeds due ৳' + currentDue, 'error');
+    if ((mtd === 'bKash' || mtd === 'Nagad' || mtd === 'Rocket') && !trx) {
+      return toast('TrxID required for ' + mtd, 'error');
+    }
+    
+    var btn = $('#cpSave');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    
+    try {
+      var userRef = db.collection('users').doc(customerId);
+      var userSnap = await userRef.get();
+      if (!userSnap.exists) throw new Error('Customer not found');
+      
+      var adminEmail = auth.currentUser ? auth.currentUser.email : 'unknown';
+      var newPayRef = db.collection('payments').doc();
+      
+      var finalDue = 0;
+      await db.runTransaction(async function(tx){
+        var u = await tx.get(userRef);
+        var cd = Number(u.data().dueAmount || 0);
+        if (amt > cd) throw new Error('Amount exceeds current due ৳' + cd);
+        var nd = cd - amt;
+        finalDue = nd;
+        
+        tx.set(newPayRef, {
+          userId: customerId,
+          amount: amt,
+          method: mtd,
+          trxId: trx,
+          months: mon,
+          status: 'verified',
+          entryType: 'admin',
+          submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          verifiedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          verifiedBy: adminEmail,
+          dueBefore: cd,
+          dueAfter: nd
+        });
+        tx.update(userRef, {
+          dueAmount: nd,
+          lastPaymentDate: firebase.firestore.FieldValue.serverTimestamp(),
+          lastPaymentAmount: amt
+        });
+      });
+      
+      closeModal();
+      toast('Collected ৳' + amt + '. Due now ৳' + finalDue, 'success');
+      if (currentPage === 'customers') renderCustomers();
+      else if (currentPage === 'dashboard') renderDashboard();
+      else if (currentPage === 'payments') renderPayments();
+    } catch(e){
+      console.error(e);
+      toast('Error: ' + e.message, 'error');
+      btn.disabled = false;
+      btn.textContent = 'Save Payment';
+    }
+  };
+}
+
+// Override old functions with new ones
+verifyPayment = verifyPaymentNew;
+rejectPayment = rejectPaymentNew;
 console.log('[JAJ Net Admin] v4.0 loaded');
