@@ -117,7 +117,8 @@ var PAGES={
   dashboard:{title:'Dashboard',render:renderDashboard},
   customers:{title:'Customers',render:renderCustomers},
   payments:{title:'Payments',render:renderPayments},
-  notices:{title:'Notices',render:renderNotices}
+  notices:   {title: 'Notices', render: renderNotices},
+            packages:  {title: 'Packages', render: renderPackages}
 };
 var currentPage='dashboard';
 
