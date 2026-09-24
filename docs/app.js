@@ -100,10 +100,27 @@ auth.onAuthStateChanged(user=>{
 $('#logoutBtn').onclick=()=>auth.signOut();
 
 // ============ SIDEBAR ============
-function openSidebar(){$('#sidebar').classList.add('open');$('#overlay').classList.remove('hidden')}
-function closeSidebar(){$('#sidebar').classList.remove('open');$('#overlay').classList.add('hidden')}
-$('#menuBtn').onclick=openSidebar;
-$('#overlay').onclick=()=>{closeSidebar();closeModal()};
+function openSidebar(){
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('overlay').classList.remove('hidden');
+}
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.add('hidden');
+}
+function toggleSidebar(){
+  var sb = document.getElementById('sidebar');
+  if(sb.classList.contains('open'))closeSidebar();
+  else openSidebar();
+}
+(function(){
+  var mb = document.getElementById('menuBtn');
+  if(mb) mb.onclick = toggleSidebar;
+  var sc = document.getElementById('sidebarClose');
+  if(sc) sc.onclick = closeSidebar;
+  var ov = document.getElementById('overlay');
+  if(ov) ov.onclick = function(){ closeSidebar(); closeModal(); };
+})();
 
 // ============ ROUTER ============
 const PAGES={
