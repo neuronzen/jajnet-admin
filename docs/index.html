@@ -33,18 +33,18 @@
       </svg>
     </div>
     <h1 class="login-title">JAJ Net Admin</h1>
-    <p class="login-sub">শুধুমাত্র অনুমোদিত ব্যবহারকারীর জন্য</p>
+    <p class="login-sub">Authorized users only</p>
     <div class="field">
       <span class="field-icon">@</span>
-      <input id="emailInput" type="email" inputmode="email" autocomplete="email" placeholder="অ্যাডমিন ইমেইল">
+      <input id="emailInput" type="email" inputmode="email" autocomplete="email" placeholder="Admin Email">
     </div>
     <div class="field">
       <span class="field-icon">&#128274;</span>
-      <input id="passwordInput" type="password" autocomplete="current-password" placeholder="পাসওয়ার্ড">
+      <input id="passwordInput" type="password" autocomplete="current-password" placeholder="Password">
       <button id="togglePass" class="eye-btn" type="button">&#128065;</button>
     </div>
     <button id="loginBtn" class="primary-btn" type="button">
-      <span id="loginBtnText">লগইন করুন</span>
+      <span id="loginBtnText">Login</span>
       <span id="loginBtnLoader" class="loader hidden"></span>
     </button>
     <div id="loginError" class="error-msg hidden"></div>
@@ -69,21 +69,21 @@
     </div>
     <nav class="sidebar-nav">
       <button type="button" class="nav-item active" data-page="dashboard">
-        <span class="nav-icon">&#9638;</span><span>ড্যাশবোর্ড</span>
+        <span class="nav-icon">&#9638;</span><span>Dashboard</span>
       </button>
       <button type="button" class="nav-item" data-page="customers">
-        <span class="nav-icon">&#128101;</span><span>গ্রাহক</span>
+        <span class="nav-icon">&#128101;</span><span>Customers</span>
       </button>
       <button type="button" class="nav-item" data-page="payments">
-        <span class="nav-icon">&#128179;</span><span>পেমেন্ট</span>
+        <span class="nav-icon">&#128179;</span><span>Payments</span>
         <span id="pendingBadge" class="badge hidden">0</span>
       </button>
       <button type="button" class="nav-item" data-page="notices">
-        <span class="nav-icon">&#128226;</span><span>নোটিশ</span>
+        <span class="nav-icon">&#128226;</span><span>Notices</span>
       </button>
     </nav>
     <button id="logoutBtn" type="button" class="logout-btn">
-      <span class="nav-icon">&#10162;</span><span>লগআউট</span>
+      <span class="nav-icon">&#10162;</span><span>Logout</span>
     </button>
     <div class="sidebar-version">v3.0</div>
   </aside>
@@ -93,7 +93,7 @@
       <button id="menuBtn" class="menu-btn" type="button" aria-label="menu">
         <span></span><span></span><span></span>
       </button>
-      <h2 id="pageTitle" class="page-title">ড্যাশবোর্ড</h2>
+      <h2 id="pageTitle" class="page-title">Dashboard</h2>
       <div id="userChip" class="user-chip"></div>
     </header>
     <div id="pageBody" class="page-body"></div>

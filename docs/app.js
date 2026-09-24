@@ -1,4 +1,4 @@
-console.log('[JAJ Net Admin] v3.0 loading...');
+console.log('[JAJ Net Admin] v4.0 English UI');
 
 const firebaseConfig = {
   apiKey: "AIzaSyAs2g3X7hcN7x991kte3vBTIIGNHfryH30",
@@ -33,17 +33,17 @@ function hideErr(){$('#loginError').classList.add('hidden')}
 
 function mapAuthError(code){
   var m={
-    'auth/invalid-credential':'ইমেইল বা পাসওয়ার্ড ভুল হয়েছে',
-    'auth/invalid-email':'ইমেইল ঠিকানাটি সঠিক নয়',
-    'auth/user-not-found':'এই ইমেইলে কোনো অ্যাকাউন্ট নেই',
-    'auth/wrong-password':'পাসওয়ার্ড ভুল হয়েছে',
-    'auth/too-many-requests':'অনেকবার চেষ্টা করা হয়েছে, পরে আবার চেষ্টা করুন',
-    'auth/network-request-failed':'ইন্টারনেট সংযোগ পাওয়া যাচ্ছে না',
-    'auth/user-disabled':'এই অ্যাকাউন্ট নিষ্ক্রিয় করা হয়েছে',
-    'auth/missing-password':'পাসওয়ার্ড লিখুন',
-    'auth/operation-not-allowed':'লগইন এখন সম্ভব হচ্ছে না'
+    'auth/invalid-credential':'Invalid email or password',
+    'auth/invalid-email':'Invalid email address',
+    'auth/user-not-found':'No account found with this email',
+    'auth/wrong-password':'Incorrect password',
+    'auth/too-many-requests':'Too many attempts. Please try again later',
+    'auth/network-request-failed':'No internet connection',
+    'auth/user-disabled':'This account has been disabled',
+    'auth/missing-password':'Please enter your password',
+    'auth/operation-not-allowed':'Login is currently unavailable'
   };
-  return m[code]||'লগইন করা যায়নি, আবার চেষ্টা করুন';
+  return m[code]||'Login failed. Please try again';
 }
 
 // LOGIN
@@ -59,8 +59,8 @@ function doLogin(){
   hideErr();
   var email=$('#emailInput').value.trim();
   var pass=$('#passwordInput').value;
-  if(!email)return showErr('ইমেইল লিখুন');
-  if(!pass)return showErr('পাসওয়ার্ড লিখুন');
+  if(!email)return showErr('Please enter your email');
+  if(!pass)return showErr('Please enter your password');
   var btn=$('#loginBtn'),txt=$('#loginBtnText'),ldr=$('#loginBtnLoader');
   btn.disabled=true;txt.classList.add('hidden');ldr.classList.remove('hidden');
   auth.signInWithEmailAndPassword(email,pass).then(function(cred){
@@ -68,7 +68,7 @@ function doLogin(){
       return auth.signOut().then(function(){throw {code:'auth/not-admin'}});
     }
   }).catch(function(err){
-    var msg=err.code==='auth/not-admin'?'এই অ্যাকাউন্টটি অ্যাডমিন নয়':mapAuthError(err.code);
+    var msg=err.code==='auth/not-admin'?'This account is not an admin':mapAuthError(err.code);
     showErr(msg);
   }).then(function(){
     btn.disabled=false;txt.classList.remove('hidden');ldr.classList.add('hidden');
@@ -114,15 +114,14 @@ $('#sidebarBackdrop').onclick=function(){closeSidebar();closeModal()};
 
 // ROUTER
 var PAGES={
-  dashboard:{title:'ড্যাশবোর্ড',render:renderDashboard},
-  customers:{title:'গ্রাহক',render:renderCustomers},
-  payments:{title:'পেমেন্ট',render:renderPayments},
-  notices:{title:'নোটিশ',render:renderNotices}
+  dashboard:{title:'Dashboard',render:renderDashboard},
+  customers:{title:'Customers',render:renderCustomers},
+  payments:{title:'Payments',render:renderPayments},
+  notices:{title:'Notices',render:renderNotices}
 };
 var currentPage='dashboard';
 
 function goto(page){
-  console.log('[JAJ Net Admin] navigating to:',page);
   if(!PAGES[page])return;
   currentPage=page;
   $$('.nav-item').forEach(function(b){b.classList.toggle('active',b.dataset.page===page)});
@@ -131,30 +130,21 @@ function goto(page){
   PAGES[page].render();
 }
 
-// Bind nav-item clicks directly AND via delegation
 $$('.nav-item').forEach(function(btn){
   btn.addEventListener('click',function(e){
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault();e.stopPropagation();
     goto(btn.dataset.page);
   });
 });
-document.addEventListener('click',function(e){
-  var nav=e.target.closest && e.target.closest('.nav-item');
-  if(nav && !nav._bound){
-    e.preventDefault();
-    goto(nav.dataset.page);
-  }
-});
 
-// START / STOP
+// START/STOP
 var unsubs=[];
 function startApp(){
   if(unsubs.length)return;
   unsubs.push(db.collection('users').onSnapshot(function(){
     if(currentPage==='dashboard')renderDashboard();
     else if(currentPage==='customers')renderCustomers();
-  },function(e){console.error('users snap:',e)}));
+  },function(e){console.error(e)}));
   unsubs.push(db.collection('payments').onSnapshot(function(snap){
     var pending=0;
     snap.forEach(function(d){if(d.data().status==='pending')pending++});
@@ -163,10 +153,10 @@ function startApp(){
     else badge.classList.add('hidden');
     if(currentPage==='dashboard')renderDashboard();
     else if(currentPage==='payments')renderPayments();
-  },function(e){console.error('payments snap:',e)}));
+  },function(e){console.error(e)}));
   unsubs.push(db.collection('notices').onSnapshot(function(){
     if(currentPage==='notices')renderNotices();
-  },function(e){console.error('notices snap:',e)}));
+  },function(e){console.error(e)}));
   goto('dashboard');
 }
 function stopApp(){
@@ -177,7 +167,7 @@ function stopApp(){
 // DASHBOARD
 function renderDashboard(){
   var body=$('#pageBody');
-  body.innerHTML='<div class="empty">লোড হচ্ছে...</div>';
+  body.innerHTML='<div class="empty">Loading...</div>';
   Promise.all([db.collection('users').get(),db.collection('payments').get()]).then(function(res){
     var users=res[0].docs,pays=res[1].docs;
     var active=0,due=0,expired=0,dueAmt=0;
@@ -202,36 +192,36 @@ function renderDashboard(){
     body.innerHTML=
       '<div class="hero-card">'+
         '<div class="hero-text">'+
-'<h3>স্বাগতম 👋</h3>'+
-'<p>JAJ Net ব্যবসার সারসংক্ষেপ</p>'+
+'<h3>Welcome 👋</h3>'+
+'<p>JAJ Net Business Overview</p>'+
 '<div class="hero-date">'+dateStr+'</div>'+
         '</div>'+
         '<div class="hero-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg></div>'+
       '</div>'+
-      '<h4 class="section-title">ব্যবসার সারসংক্ষেপ</h4>'+
+      '<h4 class="section-title">Business Overview</h4>'+
       '<div class="stats-grid">'+
-        statCard('মোট গ্রাহক',users.length,'info','&#128101;')+
+        statCard('Total Customers',users.length,'info','&#128101;')+
         statCard('Active',active,'success','&#10003;')+
         statCard('Due',due,'warning','!')+
         statCard('Expired',expired,'error','&#10005;')+
-        statCard('পেন্ডিং',pending,'warning','&#8987;')+
-        statCard('বকেয়া',money(dueAmt),'error','&#128176;')+
+        statCard('Pending',pending,'warning','&#8987;')+
+        statCard('Due Amount',money(dueAmt),'error','&#128176;')+
       '</div>'+
       '<div class="hero-card hero-mini" style="margin-bottom:22px">'+
         '<div class="hero-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>'+
-        '<div class="hero-text"><p>আজকের আদায়</p><h3 class="num">'+money(today)+'</h3></div>'+
+        '<div class="hero-text"><p>Today\'s Collection</p><h3 class="num">'+money(today)+'</h3></div>'+
       '</div>'+
-      '<h4 class="section-title">সাম্প্রতিক গ্রাহক <span style="font-weight:400;color:var(--grey);font-size:12px">('+users.length+' জন)</span></h4>'+
+      '<h4 class="section-title">Recent Customers <span style="font-weight:400;color:var(--grey);font-size:12px">('+users.length+' total)</span></h4>'+
       '<div class="card" style="padding:6px 16px">'+
         (recent.length?recent.map(function(d){
 var m=d.data(),s=(m.status||'').toLowerCase();
 var cls=s==='active'?'pill-success':s==='due'?'pill-warning':'pill-error';
 return '<div class="list-row"><div class="avatar">'+init(m.name)+'</div><div class="list-main"><div class="list-title">'+esc(m.name||'')+'</div><div class="list-sub">'+esc(m.package||'')+' • ৳'+(m.packagePrice||0)+'</div></div><span class="pill '+cls+'">'+(m.status||'').toUpperCase()+'</span></div>';
-        }).join(''):'<div class="empty">কোনো গ্রাহক নেই</div>')+
+        }).join(''):'<div class="empty">No customers yet</div>')+
       '</div>';
   }).catch(function(e){
-    console.error('dashboard:',e);
-    body.innerHTML='<div class="empty">লোড করা যায়নি, ইন্টারনেট চেক করুন</div>';
+    console.error(e);
+    body.innerHTML='<div class="empty">Failed to load. Check your internet.</div>';
   });
 }
 function statCard(label,value,type,icon){
@@ -242,11 +232,11 @@ function statCard(label,value,type,icon){
 var custSearch='',custFilter='all',custCache=[];
 function renderCustomers(){
   var body=$('#pageBody');
-  body.innerHTML='<div class="empty">লোড হচ্ছে...</div>';
+  body.innerHTML='<div class="empty">Loading...</div>';
   db.collection('users').get().then(function(snap){
     custCache=snap.docs.map(function(d){var o={id:d.id};var x=d.data();for(var k in x)o[k]=x[k];return o});
     paintCustomers();
-  }).catch(function(e){console.error('cust:',e);body.innerHTML='<div class="empty">লোড করা যায়নি</div>'});
+  }).catch(function(e){console.error(e);body.innerHTML='<div class="empty">Failed to load</div>'});
 }
 function paintCustomers(){
   var body=$('#pageBody');
@@ -259,17 +249,17 @@ function paintCustomers(){
 
   body.innerHTML=
     '<div class="toolbar">'+
-      '<div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="custSearchInput" placeholder="খুঁজুন..." value="'+esc(custSearch)+'"></div>'+
-      '<button id="addCustBtn" class="btn btn-primary" type="button">➕ নতুন গ্রাহক</button>'+
+      '<div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="custSearchInput" placeholder="Search by name, phone, email..." value="'+esc(custSearch)+'"></div>'+
+      '<button id="addCustBtn" class="btn btn-primary" type="button">+ New Customer</button>'+
     '</div>'+
     '<div class="chips">'+
-      '<button class="chip '+(custFilter==='all'?'active':'')+'" data-f="all" type="button">সব</button>'+
+      '<button class="chip '+(custFilter==='all'?'active':'')+'" data-f="all" type="button">All</button>'+
       '<button class="chip '+(custFilter==='active'?'active':'')+'" data-f="active" type="button">Active</button>'+
       '<button class="chip '+(custFilter==='due'?'active':'')+'" data-f="due" type="button">Due</button>'+
       '<button class="chip '+(custFilter==='expired'?'active':'')+'" data-f="expired" type="button">Expired</button>'+
     '</div>'+
-    '<div style="font-size:12.5px;color:var(--grey);margin-bottom:10px">মোট '+list.length+' জন</div>'+
-    '<div id="custList">'+(list.length?list.map(customerRow).join(''):'<div class="empty">কোনো গ্রাহক নেই</div>')+'</div>';
+    '<div style="font-size:12.5px;color:var(--grey);margin-bottom:10px">Total '+list.length+' customers</div>'+
+    '<div id="custList">'+(list.length?list.map(customerRow).join(''):'<div class="empty">No customers</div>')+'</div>';
 
   var si=$('#custSearchInput');
   si.oninput=function(e){custSearch=e.target.value;var p=si.selectionStart;paintCustomers();var ns=$('#custSearchInput');ns.focus();ns.setSelectionRange(p,p)};
@@ -309,19 +299,19 @@ $('#modalOverlay').onclick=closeModal;
 
 function openAddCustomer(){
   openModal(
-    '<div class="modal-title">➕ নতুন গ্রাহক</div>'+
-    '<div class="form-row"><label>নাম *</label><input id="acName" placeholder="গ্রাহকের নাম"></div>'+
-    '<div class="form-row"><label>মোবাইল নম্বর</label><input id="acPhone" type="tel" inputmode="tel" placeholder="01XXXXXXXXX"></div>'+
-    '<div class="form-row"><label>ইমেইল *</label><input id="acEmail" type="email" inputmode="email" placeholder="customer@example.com"></div>'+
-    '<div class="form-row"><label>পাসওয়ার্ড * (গ্রাহককে জানাতে হবে)</label><input id="acPass" value="jajnet1234"></div>'+
-    '<div class="form-row"><label>ঠিকানা / এলাকা</label><input id="acAddr" placeholder="Podoharbaid"></div>'+
-    '<div class="form-row"><label>প্যাকেজ</label><select id="acPkg">'+Object.keys(PACKAGES).map(function(k){return '<option value="'+k+'">'+k+' — ৳'+PACKAGES[k]+'</option>'}).join('')+'</select></div>'+
+    '<div class="modal-title">+ New Customer</div>'+
+    '<div class="form-row"><label>Name *</label><input id="acName" placeholder="Customer name"></div>'+
+    '<div class="form-row"><label>Mobile Number</label><input id="acPhone" type="tel" inputmode="tel" placeholder="01XXXXXXXXX"></div>'+
+    '<div class="form-row"><label>Email *</label><input id="acEmail" type="email" inputmode="email" placeholder="customer@example.com"></div>'+
+    '<div class="form-row"><label>Password * (share with customer)</label><input id="acPass" value="jajnet1234"></div>'+
+    '<div class="form-row"><label>Address / Area</label><input id="acAddr" placeholder="Podoharbaid"></div>'+
+    '<div class="form-row"><label>Package</label><select id="acPkg">'+Object.keys(PACKAGES).map(function(k){return '<option value="'+k+'">'+k+' — ৳'+PACKAGES[k]+'</option>'}).join('')+'</select></div>'+
     '<div class="form-grid-2">'+
-      '<div class="form-row"><label>মাসিক বিল (৳)</label><input id="acPrice" type="number" value="525"></div>'+
-      '<div class="form-row"><label>বর্তমান বকেয়া (৳)</label><input id="acDue" type="number" value="525"></div>'+
+      '<div class="form-row"><label>Monthly Bill (৳)</label><input id="acPrice" type="number" value="525"></div>'+
+      '<div class="form-row"><label>Current Due (৳)</label><input id="acDue" type="number" value="525"></div>'+
     '</div>'+
-    '<div class="form-row"><label>স্ট্যাটাস</label><select id="acStatus"><option value="active">Active</option><option value="due">Due</option><option value="expired">Expired</option></select></div>'+
-    '<div class="modal-actions"><button class="btn btn-outline" id="acCancel" type="button">বাতিল</button><button class="btn btn-primary" id="acSave" type="button">যোগ করুন</button></div>'
+    '<div class="form-row"><label>Status</label><select id="acStatus"><option value="active">Active</option><option value="due">Due</option><option value="expired">Expired</option></select></div>'+
+    '<div class="modal-actions"><button class="btn btn-outline" id="acCancel" type="button">Cancel</button><button class="btn btn-primary" id="acSave" type="button">Add Customer</button></div>'
   );
   $('#acPkg').onchange=function(){var v=PACKAGES[$('#acPkg').value];$('#acPrice').value=v;$('#acDue').value=v};
   $('#acCancel').onclick=closeModal;
@@ -331,10 +321,10 @@ function submitAddCustomer(){
   var name=$('#acName').value.trim();
   var email=$('#acEmail').value.trim();
   var pass=$('#acPass').value;
-  if(!name)return toast('নাম দিন','error');
-  if(!email)return toast('ইমেইল দিন','error');
-  if(pass.length<6)return toast('পাসওয়ার্ড কমপক্ষে ৬ অক্ষর','error');
-  var btn=$('#acSave');btn.disabled=true;btn.textContent='অপেক্ষা করুন...';
+  if(!name)return toast('Please enter name','error');
+  if(!email)return toast('Please enter email','error');
+  if(pass.length<6)return toast('Password must be 6+ characters','error');
+  var btn=$('#acSave');btn.disabled=true;btn.textContent='Please wait...';
   var secondary=firebase.apps.filter(function(a){return a.name==='admin_creator'})[0];
   if(!secondary)secondary=firebase.initializeApp(firebaseConfig,'admin_creator');
   var sAuth=secondary.auth();
@@ -350,16 +340,16 @@ function submitAddCustomer(){
     }).then(function(){return sAuth.signOut()});
   }).then(function(){
     closeModal();
-    toast('গ্রাহক যোগ হয়েছে ✅ পাসওয়ার্ড: '+pass+' — গ্রাহককে জানান','success');
+    toast('Customer added ✅ Password: '+pass+' — Share with customer','success');
     renderCustomers();
   }).catch(function(err){
-    var msg='গ্রাহক যোগ করা যায়নি';
-    if(err.code==='auth/email-already-in-use')msg='এই ইমেইল আগে থেকেই আছে';
-    else if(err.code==='auth/invalid-email')msg='ইমেইল সঠিক নয়';
-    else if(err.code==='auth/weak-password')msg='পাসওয়ার্ড আরও শক্তিশালী করুন';
-    console.error('add cust:',err);
+    var msg='Failed to add customer';
+    if(err.code==='auth/email-already-in-use')msg='This email is already registered';
+    else if(err.code==='auth/invalid-email')msg='Invalid email address';
+    else if(err.code==='auth/weak-password')msg='Password is too weak';
+    console.error(err);
     toast(msg,'error');
-    btn.disabled=false;btn.textContent='যোগ করুন';
+    btn.disabled=false;btn.textContent='Add Customer';
   });
 }
 
@@ -368,22 +358,22 @@ function openCustomerDetail(id){
   if(!m)return;
   openModal(
     '<div class="modal-title">👤 '+esc(m.name||'')+'</div>'+
-    '<div class="form-row"><label>নাম</label><input id="dcName" value="'+esc(m.name||'')+'"></div>'+
-    '<div class="form-row"><label>মোবাইল</label><input id="dcPhone" value="'+esc(m.phone||'')+'"></div>'+
-    '<div class="form-row"><label>ইমেইল</label><input value="'+esc(m.email||'')+'" disabled style="opacity:.6"></div>'+
-    '<div class="form-row"><label>ঠিকানা</label><input id="dcAddr" value="'+esc(m.address||'')+'"></div>'+
-    '<div class="form-row"><label>প্যাকেজ</label><select id="dcPkg">'+Object.keys(PACKAGES).map(function(k){return '<option value="'+k+'" '+(k===m.package?'selected':'')+'>'+k+' — ৳'+PACKAGES[k]+'</option>'}).join('')+'</select></div>'+
+    '<div class="form-row"><label>Name</label><input id="dcName" value="'+esc(m.name||'')+'"></div>'+
+    '<div class="form-row"><label>Mobile</label><input id="dcPhone" value="'+esc(m.phone||'')+'"></div>'+
+    '<div class="form-row"><label>Email</label><input value="'+esc(m.email||'')+'" disabled style="opacity:.6"></div>'+
+    '<div class="form-row"><label>Address</label><input id="dcAddr" value="'+esc(m.address||'')+'"></div>'+
+    '<div class="form-row"><label>Package</label><select id="dcPkg">'+Object.keys(PACKAGES).map(function(k){return '<option value="'+k+'" '+(k===m.package?'selected':'')+'>'+k+' — ৳'+PACKAGES[k]+'</option>'}).join('')+'</select></div>'+
     '<div class="form-grid-2">'+
-      '<div class="form-row"><label>মাসিক বিল (৳)</label><input id="dcPrice" type="number" value="'+(m.packagePrice||0)+'"></div>'+
-      '<div class="form-row"><label>বকেয়া (৳)</label><input id="dcDue" type="number" value="'+(m.dueAmount||0)+'"></div>'+
+      '<div class="form-row"><label>Monthly Bill (৳)</label><input id="dcPrice" type="number" value="'+(m.packagePrice||0)+'"></div>'+
+      '<div class="form-row"><label>Due Amount (৳)</label><input id="dcDue" type="number" value="'+(m.dueAmount||0)+'"></div>'+
     '</div>'+
-    '<div class="form-row"><label>স্ট্যাটাস</label><select id="dcStatus">'+['active','due','expired'].map(function(s){return '<option value="'+s+'" '+(s===m.status?'selected':'')+'>'+s.charAt(0).toUpperCase()+s.slice(1)+'</option>'}).join('')+'</select></div>'+
-    '<div class="modal-actions"><button class="btn btn-outline" id="dcCancel" type="button">বাতিল</button><button class="btn btn-primary" id="dcSave" type="button">সেভ করুন</button></div>'
+    '<div class="form-row"><label>Status</label><select id="dcStatus">'+['active','due','expired'].map(function(s){return '<option value="'+s+'" '+(s===m.status?'selected':'')+'>'+s.charAt(0).toUpperCase()+s.slice(1)+'</option>'}).join('')+'</select></div>'+
+    '<div class="modal-actions"><button class="btn btn-outline" id="dcCancel" type="button">Cancel</button><button class="btn btn-primary" id="dcSave" type="button">Save Changes</button></div>'
   );
   $('#dcCancel').onclick=closeModal;
   $('#dcPkg').onchange=function(){var v=PACKAGES[$('#dcPkg').value];$('#dcPrice').value=v};
   $('#dcSave').onclick=function(){
-    var btn=$('#dcSave');btn.disabled=true;btn.textContent='সেভ হচ্ছে...';
+    var btn=$('#dcSave');btn.disabled=true;btn.textContent='Saving...';
     db.collection('users').doc(id).update({
       name:$('#dcName').value.trim(),
       phone:$('#dcPhone').value.trim(),
@@ -394,12 +384,12 @@ function openCustomerDetail(id){
       status:$('#dcStatus').value
     }).then(function(){
       closeModal();
-      toast('গ্রাহকের তথ্য সেভ হয়েছে ✅','success');
+      toast('Customer info saved ✅','success');
       renderCustomers();
     }).catch(function(e){
-      console.error('save cust:',e);
-      toast('সেভ করা যায়নি','error');
-      btn.disabled=false;btn.textContent='সেভ করুন';
+      console.error(e);
+      toast('Failed to save','error');
+      btn.disabled=false;btn.textContent='Save Changes';
     });
   };
 }
@@ -408,11 +398,11 @@ function openCustomerDetail(id){
 var payTab='pending',payCache=[];
 function renderPayments(){
   var body=$('#pageBody');
-  body.innerHTML='<div class="empty">লোড হচ্ছে...</div>';
+  body.innerHTML='<div class="empty">Loading...</div>';
   db.collection('payments').orderBy('createdAt','desc').get().catch(function(){return db.collection('payments').get()}).then(function(snap){
     payCache=snap.docs.map(function(d){var o={id:d.id};var x=d.data();for(var k in x)o[k]=x[k];return o});
     paintPayments();
-  }).catch(function(e){console.error('pay:',e);body.innerHTML='<div class="empty">লোড করা যায়নি</div>'});
+  }).catch(function(e){console.error(e);body.innerHTML='<div class="empty">Failed to load</div>'});
 }
 function paintPayments(){
   var body=$('#pageBody');
@@ -420,10 +410,10 @@ function paintPayments(){
   var pendingCount=payCache.filter(function(p){return p.status==='pending'}).length;
   body.innerHTML=
     '<div class="chips">'+
-      '<button class="chip '+(payTab==='pending'?'active':'')+'" data-t="pending" type="button">পেন্ডিং ('+pendingCount+')</button>'+
-      '<button class="chip '+(payTab==='all'?'active':'')+'" data-t="all" type="button">সব পেমেন্ট</button>'+
+      '<button class="chip '+(payTab==='pending'?'active':'')+'" data-t="pending" type="button">Pending ('+pendingCount+')</button>'+
+      '<button class="chip '+(payTab==='all'?'active':'')+'" data-t="all" type="button">All Payments</button>'+
     '</div>'+
-    '<div id="payList">'+(list.length?list.map(paymentCard).join(''):'<div class="empty">কোনো পেমেন্ট নেই</div>')+'</div>';
+    '<div id="payList">'+(list.length?list.map(paymentCard).join(''):'<div class="empty">No payments yet</div>')+'</div>';
   $$('.chips .chip').forEach(function(c){c.onclick=function(){payTab=c.dataset.t;paintPayments()}});
   $$('#payList .pay-verify').forEach(function(b){b.onclick=function(){verifyPayment(b.dataset.id)}});
   $$('#payList .pay-reject').forEach(function(b){b.onclick=function(){rejectPayment(b.dataset.id)}});
@@ -438,66 +428,66 @@ function paymentCard(p){
       '<div class="list-main">'+
         '<div class="list-title num">'+money(p.amount)+'</div>'+
         '<div class="list-sub">TrxID: '+esc(p.trxId||'')+'</div>'+
-        '<div class="list-sub">মেথড: '+esc(p.method||'bKash')+'</div>'+
+        '<div class="list-sub">Method: '+esc(p.method||'bKash')+'</div>'+
       '</div>'+
       '<span class="pill '+cls+'">'+s.toUpperCase()+'</span>'+
     '</div>'+
     (s==='pending'?'<div style="display:flex;gap:10px">'+
-      '<button class="btn btn-danger pay-reject" data-id="'+p.id+'" type="button" style="flex:1;justify-content:center">বাতিল</button>'+
+      '<button class="btn btn-danger pay-reject" data-id="'+p.id+'" type="button" style="flex:1;justify-content:center">Reject</button>'+
       '<button class="btn btn-success pay-verify" data-id="'+p.id+'" type="button" style="flex:1;justify-content:center">Verify</button>'+
     '</div>':'')+
   '</div>';
 }
 function verifyPayment(id){
-  db.collection('payments').doc(id).update({status:'verified',verifiedAt:firebase.firestore.FieldValue.serverTimestamp()}).then(function(){toast('পেমেন্ট Verify হয়েছে ✅','success')}).catch(function(e){console.error(e);toast('সমস্যা হয়েছে','error')});
+  db.collection('payments').doc(id).update({status:'verified',verifiedAt:firebase.firestore.FieldValue.serverTimestamp()}).then(function(){toast('Payment verified ✅','success')}).catch(function(e){console.error(e);toast('Something went wrong','error')});
 }
 function rejectPayment(id){
-  db.collection('payments').doc(id).update({status:'rejected'}).then(function(){toast('পেমেন্ট বাতিল করা হয়েছে','error')}).catch(function(e){console.error(e);toast('সমস্যা হয়েছে','error')});
+  db.collection('payments').doc(id).update({status:'rejected'}).then(function(){toast('Payment rejected','error')}).catch(function(e){console.error(e);toast('Something went wrong','error')});
 }
 
 // NOTICES
 function renderNotices(){
   var body=$('#pageBody');
-  body.innerHTML='<div class="empty">লোড হচ্ছে...</div>';
+  body.innerHTML='<div class="empty">Loading...</div>';
   db.collection('notices').get().then(function(snap){
     var list=snap.docs.map(function(d){var o={id:d.id};var x=d.data();for(var k in x)o[k]=x[k];return o});
     body.innerHTML=
-      '<button id="addNoticeBtn" class="btn btn-primary btn-block" type="button" style="margin-bottom:16px">➕ নতুন নোটিশ পাঠান</button>'+
-      '<div id="noticeList">'+(list.length?list.map(noticeCard).join(''):'<div class="empty">কোনো নোটিশ নেই</div>')+'</div>';
+      '<button id="addNoticeBtn" class="btn btn-primary btn-block" type="button" style="margin-bottom:16px">+ Send New Notice</button>'+
+      '<div id="noticeList">'+(list.length?list.map(noticeCard).join(''):'<div class="empty">No notices yet</div>')+'</div>';
     $('#addNoticeBtn').onclick=openAddNotice;
     $$('#noticeList .notice-del').forEach(function(b){b.onclick=function(){deleteNotice(b.dataset.id)}});
-  }).catch(function(e){console.error('not:',e);body.innerHTML='<div class="empty">লোড করা যায়নি</div>'});
+  }).catch(function(e){console.error(e);body.innerHTML='<div class="empty">Failed to load</div>'});
 }
 function noticeCard(n){
   return '<div class="card"><div style="display:flex;gap:12px;align-items:flex-start">'+
     '<div class="stat-icon stat-warning" style="width:44px;height:44px;flex-shrink:0">&#128226;</div>'+
     '<div style="flex:1;min-width:0"><div style="font-weight:700;margin-bottom:4px">'+esc(n.title||'')+'</div><div style="font-size:13px;color:var(--grey);word-break:break-word">'+esc(n.body||'')+'</div></div>'+
-    '<button class="btn btn-danger notice-del" data-id="'+n.id+'" type="button" style="padding:6px 10px;font-size:12px;flex-shrink:0">মুছুন</button>'+
+    '<button class="btn btn-danger notice-del" data-id="'+n.id+'" type="button" style="padding:6px 10px;font-size:12px;flex-shrink:0">Delete</button>'+
   '</div></div>';
 }
 function openAddNotice(){
   openModal(
-    '<div class="modal-title">📢 নতুন নোটিশ</div>'+
-    '<div class="form-row"><label>শিরোনাম</label><input id="anTitle" placeholder="যেমন: আগামীকাল নেট বন্ধ"></div>'+
-    '<div class="form-row"><label>বিস্তারিত</label><textarea id="anBody" rows="5" placeholder="নোটিশের বিস্তারিত লিখুন..."></textarea></div>'+
-    '<div class="modal-actions"><button class="btn btn-outline" id="anCancel" type="button">বাতিল</button><button class="btn btn-primary" id="anSave" type="button">পাঠান</button></div>'
+    '<div class="modal-title">📢 New Notice</div>'+
+    '<div class="form-row"><label>Title</label><input id="anTitle" placeholder="e.g. Internet will be down tomorrow"></div>'+
+    '<div class="form-row"><label>Details</label><textarea id="anBody" rows="5" placeholder="Write the notice details..."></textarea></div>'+
+    '<div class="modal-actions"><button class="btn btn-outline" id="anCancel" type="button">Cancel</button><button class="btn btn-primary" id="anSave" type="button">Send</button></div>'
   );
   $('#anCancel').onclick=closeModal;
   $('#anSave').onclick=function(){
     var t=$('#anTitle').value.trim();
     var b=$('#anBody').value.trim();
-    if(!t)return toast('শিরোনাম দিন','error');
-    var btn=$('#anSave');btn.disabled=true;btn.textContent='পাঠানো হচ্ছে...';
+    if(!t)return toast('Please enter title','error');
+    var btn=$('#anSave');btn.disabled=true;btn.textContent='Sending...';
     db.collection('notices').add({title:t,body:b,createdAt:firebase.firestore.FieldValue.serverTimestamp()}).then(function(){
       closeModal();
-      toast('নোটিশ পাঠানো হয়েছে ✅','success');
+      toast('Notice sent ✅','success');
       renderNotices();
-    }).catch(function(e){console.error('add not:',e);toast('পাঠানো যায়নি','error');btn.disabled=false;btn.textContent='পাঠান'});
+    }).catch(function(e){console.error(e);toast('Failed to send','error');btn.disabled=false;btn.textContent='Send'});
   };
 }
 function deleteNotice(id){
-  if(!confirm('নোটিশ মুছবেন?'))return;
-  db.collection('notices').doc(id).delete().then(function(){toast('নোটিশ মুছে ফেলা হয়েছে','success');renderNotices()}).catch(function(e){console.error(e);toast('সমস্যা হয়েছে','error')});
+  if(!confirm('Delete this notice?'))return;
+  db.collection('notices').doc(id).delete().then(function(){toast('Notice deleted','success');renderNotices()}).catch(function(e){console.error(e);toast('Something went wrong','error')});
 }
 
-console.log('[JAJ Net Admin] v3.0 loaded');
+console.log('[JAJ Net Admin] v4.0 loaded');
