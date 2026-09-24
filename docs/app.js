@@ -252,7 +252,8 @@ function paintCustomers(){
   body.innerHTML=
     '<div class="toolbar">'+
       '<div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="custSearchInput" placeholder="Search by name, phone, email..." value="'+esc(custSearch)+'"></div>'+
-      '<button id="addCustBtn" class="btn btn-primary" type="button">+ New Customer</button>'+
+      '<button id="assignAllBtn" class="btn btn-outline" type="button" style="margin-right:8px">Assign IDs</button>' +
+                '<button id="addCustBtn" class="btn btn-primary" type="button">+ New Customer</button>'+
     '</div>'+
     '<div class="chips">'+
       '<button class="chip '+(custFilter==='all'?'active':'')+'" data-f="all" type="button">All</button>'+
@@ -266,6 +267,14 @@ function paintCustomers(){
   var si=$('#custSearchInput');
   si.oninput=function(e){custSearch=e.target.value;var p=si.selectionStart;paintCustomers();var ns=$('#custSearchInput');ns.focus();ns.setSelectionRange(p,p)};
   $('#addCustBtn').onclick=openAddCustomer;
+  var assignAllBtn=$('#assignAllBtn');
+  if(assignAllBtn)assignAllBtn.onclick=assignAllMissing;
+  $$('.assign-id-btn').forEach(function(b){
+    b.onclick=function(e){
+      e.stopPropagation();
+      assignCustomerId(b.dataset.id);
+    };
+  });
   $$('.chips .chip').forEach(function(c){c.onclick=function(){custFilter=c.dataset.f;paintCustomers()}});
   $$('#custList .customer-card').forEach(function(c){c.onclick=function(){openCustomerDetail(c.dataset.id)}});
 }
@@ -276,7 +285,10 @@ function customerRow(m){
   return '<div class="customer-card" data-id="'+m.id+'">'+
     '<div class="avatar">'+init(m.name)+'</div>'+
     '<div class="customer-info">'+
-      '<div class="customer-name">'+esc(m.name||'')+'</div>'+
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px">'+
+        '<div class="customer-name" style="margin-bottom:0">'+esc(m.name||'')+'</div>'+
+        (m.customerId ? '<span class="pill pill-info" style="font-size:9px">'+esc(m.customerId)+'</span>' : '<button class="btn btn-outline assign-id-btn" data-id="'+m.id+'" type="button" style="padding:2px 8px;font-size:10px">+ ID</button>')+
+      '</div>'+
       '<div class="customer-meta">'+esc(m.phone||'')+' • '+esc(m.package||'')+'</div>'+
       '<div class="customer-meta">'+esc(m.address||'')+'</div>'+
     '</div>'+
@@ -330,6 +342,7 @@ function submitAddCustomer(){
   var secondary=firebase.apps.filter(function(a){return a.name==='admin_creator'})[0];
   if(!secondary)secondary=firebase.initializeApp(firebaseConfig,'admin_creator');
   var sAuth=secondary.auth();
+  var newCustomerId = await generateCustomerId();
   sAuth.createUserWithEmailAndPassword(email,pass).then(function(cred){
     return db.collection('users').doc(cred.user.uid).set({
       name:name,phone:$('#acPhone').value.trim(),email:email,
@@ -338,6 +351,7 @@ function submitAddCustomer(){
       packagePrice:Number($('#acPrice').value)||0,
       dueAmount:Number($('#acDue').value)||0,
       status:$('#acStatus').value,
+      customerId:newCustomerId,
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     }).then(function(){return sAuth.signOut()});
   }).then(function(){
@@ -814,6 +828,76 @@ function collectPayment(customerId, customerName, currentDue){
 // Override old functions with new ones
 verifyPayment = verifyPaymentNew;
 rejectPayment = rejectPaymentNew;
+
+
+// ============ CUSTOMER ID SYSTEM ============
+async function generateCustomerId(){
+  var counterRef = db.collection('counters').doc('customerId');
+  var newId = null;
+  await db.runTransaction(async function(tx){
+    var snap = await tx.get(counterRef);
+    var current = 0;
+    if (snap.exists) {
+      current = Number(snap.data().value || 0);
+    } else {
+      var usersSnap = await db.collection('users').get();
+      current = usersSnap.size;
+    }
+    var next = current + 1;
+    tx.set(counterRef, {value: next}, {merge: true});
+    newId = 'JAJ-' + String(next).padStart(3, '0');
+  });
+  return newId;
+}
+
+async function assignCustomerId(userId){
+  try {
+    var userRef = db.collection('users').doc(userId);
+    var snap = await userRef.get();
+    if (!snap.exists) return toast('Customer not found','error');
+    if (snap.data().customerId) {
+      return toast('Already has ID: ' + snap.data().customerId, 'error');
+    }
+    var newId = await generateCustomerId();
+    await userRef.update({customerId: newId});
+    toast('Assigned: ' + newId, 'success');
+    renderCustomers();
+  } catch(e) {
+    console.error(e);
+    toast('Failed: ' + e.message, 'error');
+  }
+}
+
+async function assignAllMissing(){
+  if (!confirm('Assign Customer IDs to all customers who do not have one yet?')) return;
+  try {
+    var usersSnap = await db.collection('users').get();
+    var missing = usersSnap.docs.filter(function(d){
+      return !d.data().customerId;
+    });
+    if (missing.length === 0) return toast('All customers already have IDs', 'success');
+    
+    var counterRef = db.collection('counters').doc('customerId');
+    var counterSnap = await counterRef.get();
+    var start = counterSnap.exists ? Number(counterSnap.data().value || 0) : 0;
+    
+    var count = 0;
+    for (var i = 0; i < missing.length; i++) {
+      var doc = missing[i];
+      start++;
+      var newId = 'JAJ-' + String(start).padStart(3, '0');
+      await db.collection('users').doc(doc.id).update({customerId: newId});
+      count++;
+    }
+    await counterRef.set({value: start}, {merge: true});
+    toast('Assigned ' + count + ' customer IDs', 'success');
+    renderCustomers();
+  } catch(e) {
+    console.error(e);
+    toast('Failed: ' + e.message, 'error');
+  }
+}
+
 console.log('[JAJ Net Admin] v4.0 loaded');
 
 // ============ PAYMENT v8a ============
