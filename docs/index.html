@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>JAJ Net Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="loginScreen" class="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+        <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+        <line x1="12" y1="20" x2="12.01" y2="20"/>
+      </svg>
+    </div>
+    <h1 class="login-title">JAJ Net Admin</h1>
+    <p class="login-sub">শুধুমাত্র অনুমোদিত ব্যবহারকারীর জন্য</p>
+    <div class="field">
+      <span class="field-icon">@</span>
+      <input id="emailInput" type="email" inputmode="email" autocomplete="email" placeholder="অ্যাডমিন ইমেইল">
+    </div>
+    <div class="field">
+      <span class="field-icon">&#128274;</span>
+      <input id="passwordInput" type="password" autocomplete="current-password" placeholder="পাসওয়ার্ড">
+      <button id="togglePass" class="eye-btn" type="button" aria-label="show">&#128065;</button>
+    </div>
+    <button id="loginBtn" class="primary-btn" type="button">
+      <span id="loginBtnText">লগইন করুন</span>
+      <span id="loginBtnLoader" class="loader hidden"></span>
+    </button>
+    <div id="loginError" class="error-msg hidden"></div>
+  </div>
+</div>
+
+<div id="mainApp" class="main-app hidden">
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+<path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+<path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+<path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+<line x1="12" y1="20" x2="12.01" y2="20"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-name">JAJ Net</div>
+        <div class="brand-sub">Admin Panel</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-page="dashboard">
+        <span class="nav-icon">&#9638;</span>
+        <span>ড্যাশবোর্ড</span>
+      </button>
+      <button class="nav-item" data-page="customers">
+        <span class="nav-icon">&#128101;</span>
+        <span>গ্রাহক</span>
+      </button>
+      <button class="nav-item" data-page="payments">
+        <span class="nav-icon">&#128179;</span>
+        <span>পেমেন্ট</span>
+        <span id="pendingBadge" class="badge hidden">0</span>
+      </button>
+      <button class="nav-item" data-page="notices">
+        <span class="nav-icon">&#128226;</span>
+        <span>নোটিশ</span>
+      </button>
+    </nav>
+    <button id="logoutBtn" class="logout-btn">
+      <span class="nav-icon">&#10162;</span>
+      <span>লগআউট</span>
+    </button>
+  </aside>
+
+  <main class="content">
+    <header class="topbar">
+      <button id="menuBtn" class="menu-btn" aria-label="menu">
+        <span></span><span></span><span></span>
+      </button>
+      <h2 id="pageTitle" class="page-title">ড্যাশবোর্ড</h2>
+      <div id="userChip" class="user-chip"></div>
+    </header>
+    <div id="pageBody" class="page-body"></div>
+  </main>
+</div>
+
+<div id="overlay" class="overlay hidden"></div>
+<div id="modal" class="modal hidden">
+  <div class="modal-content" id="modalContent"></div>
+</div>
+<div id="toast" class="toast hidden"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
