@@ -1,0 +1,519 @@
+name: Add Packages Management
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add packages methods to services.dart
+        run: |
+          python3 << 'ENDPY'
+          with open('lib/services.dart') as f:
+              c = f.read()
+
+          if 'getPackages' not in c:
+              # Insert methods before the last closing brace
+              new_methods = '''
+            static Stream<QuerySnapshot> get packagesStream =>
+                db.collection('packages').orderBy('order').snapshots();
+
+            static Future<void> addPackage({
+              required String name,
+              required int price,
+              required int order,
+            }) async {
+              await db.collection('packages').add({
+                'name': name,
+                'price': price,
+                'order': order,
+                'isActive': true,
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+            }
+
+            static Future<void> updatePackage(
+                String id, Map<String, dynamic> data) async {
+              await db.collection('packages').doc(id).update(data);
+            }
+
+            static Future<void> deletePackage(String id) async {
+              await db.collection('packages').doc(id).delete();
+            }
+          '''
+              idx = c.rstrip().rfind('}')
+              if idx > 0:
+                  c = c[:idx] + new_methods + '\n' + c[idx:]
+              print("Package methods added")
+
+          with open('lib/services.dart', 'w') as f:
+              f.write(c)
+          ENDPY
+          grep -c "packagesStream\|addPackage" lib/services.dart
+
+      - name: Write lib/pages/packages.dart
+        run: |
+          cat > lib/pages/packages.dart << 'ENDPKG'
+          import 'package:cloud_firestore/cloud_firestore.dart';
+          import 'package:flutter/material.dart';
+          import 'package:google_fonts/google_fonts.dart';
+
+          import '../services.dart';
+          import '../theme.dart';
+
+          class PackagesPage extends StatefulWidget {
+            const PackagesPage({super.key});
+            @override
+            State<PackagesPage> createState() => _PackagesPageState();
+          }
+
+          class _PackagesPageState extends State<PackagesPage> {
+            void _showAddDialog({Map<String, dynamic>? existing, String? id}) {
+              final name = TextEditingController(text: (existing?['name'] ?? '').toString());
+              final price = TextEditingController(text: (existing?['price'] ?? 525).toString());
+              final order = TextEditingController(text: (existing?['order'] ?? 1).toString());
+              bool isActive = existing?['isActive'] as bool? ?? true;
+              bool loading = false;
+
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (ctx) => StatefulBuilder(
+                  builder: (ctx, setS) => AlertDialog(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20)),
+                    title: Text(
+                      existing == null ? '+ New Package' : 'Edit Package',
+                      style: GoogleFonts.hindSiliguri(
+                          fontSize: 18, fontWeight: FontWeight.w700),
+                    ),
+                    content: SizedBox(
+                      width: 440,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TextField(
+                            controller: name,
+                            style: GoogleFonts.poppins(fontSize: 14),
+                            decoration: const InputDecoration(
+                              labelText: 'Speed (e.g. 20 Mbps)',
+                              prefixIcon: Icon(Icons.wifi_rounded,
+                                  color: AC.primary, size: 20),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: price,
+                            keyboardType: TextInputType.number,
+                            style: GoogleFonts.poppins(fontSize: 14),
+                            decoration: const InputDecoration(
+                              labelText: 'Monthly Price (৳)',
+                              prefixIcon: Icon(Icons.attach_money_rounded,
+                                  color: AC.primary, size: 20),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: order,
+                            keyboardType: TextInputType.number,
+                            style: GoogleFonts.poppins(fontSize: 14),
+                            decoration: const InputDecoration(
+                              labelText: 'Display Order (1, 2, 3...)',
+                              prefixIcon: Icon(Icons.sort_rounded,
+                                  color: AC.primary, size: 20),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          SwitchListTile(
+                            value: isActive,
+                            onChanged: (v) => setS(() => isActive = v),
+                            title: Text(
+                              'Active (visible to customers)',
+                              style: GoogleFonts.hindSiliguri(fontSize: 14),
+                            ),
+                            activeColor: AC.primary,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ],
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: loading ? null : () => Navigator.pop(ctx),
+                        child: Text('Cancel',
+                            style: GoogleFonts.hindSiliguri(color: AC.grey)),
+                      ),
+                      ElevatedButton(
+                        onPressed: loading
+                            ? null
+                            : () async {
+                                if (name.text.trim().isEmpty) return;
+                                setS(() => loading = true);
+                                try {
+                                  final data = {
+                                    'name': name.text.trim(),
+                                    'price':
+                                        int.tryParse(price.text) ?? 0,
+                                    'order': int.tryParse(order.text) ?? 1,
+                                    'isActive': isActive,
+                                  };
+                                  if (existing == null) {
+                                    await AdminService.addPackage(
+                                      name: data['name'] as String,
+                                      price: data['price'] as int,
+                                      order: data['order'] as int,
+                                    );
+                                    if (isActive == false) {
+                                      // will be set on next update; ok
+                                    }
+                                  } else {
+                                    await AdminService.updatePackage(
+                                        id!, data);
+                                  }
+                                  if (!ctx.mounted) return;
+                                  Navigator.pop(ctx);
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          existing == null
+                                              ? 'Package added ✅'
+                                              : 'Package updated ✅',
+                                          style: GoogleFonts.hindSiliguri(
+                                              height: 1.5)),
+                                      backgroundColor: AC.success,
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                } catch (e) {
+                                  if (!ctx.mounted) return;
+                                  setS(() => loading = false);
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    SnackBar(
+                                        content: Text('Error: $e'),
+                                        backgroundColor: AC.error),
+                                  );
+                                }
+                              },
+                        child: loading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2))
+                            : Text(
+                                existing == null ? 'Add' : 'Save',
+                                style: GoogleFonts.hindSiliguri(
+                                    fontWeight: FontWeight.w600),
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            Future<void> _confirmDelete(String id, String name) async {
+              final ok = await showDialog<bool>(
+                context: context,
+                builder: (_) => AlertDialog(
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20)),
+                  title: Text('Delete package?',
+                      style: GoogleFonts.hindSiliguri(
+                          fontWeight: FontWeight.w700)),
+                  content: Text('"$name" will be removed permanently.',
+                      style: GoogleFonts.hindSiliguri(height: 1.5)),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: Text('Delete',
+                          style: GoogleFonts.hindSiliguri(
+                              color: AC.error,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+              );
+              if (ok == true) {
+                await AdminService.deletePackage(id);
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Package deleted',
+                        style: GoogleFonts.hindSiliguri(height: 1.5)),
+                    backgroundColor: AC.error,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            }
+
+            @override
+            Widget build(BuildContext context) {
+              return Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text('Manage Packages',
+                              style: GoogleFonts.hindSiliguri(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: AC.ink)),
+                        ),
+                        SizedBox(
+                          height: 48,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _showAddDialog(),
+                            icon: const Icon(Icons.add_rounded,
+                                color: Colors.white, size: 20),
+                            label: Text('New Package',
+                                style: GoogleFonts.hindSiliguri(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Changes here appear instantly in the customer app.',
+                      style: GoogleFonts.hindSiliguri(
+                          fontSize: 12.5, color: AC.grey),
+                    ),
+                    const SizedBox(height: 18),
+                    Expanded(
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream: AdminService.packagesStream,
+                        builder: (context, snap) {
+                          if (snap.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                                child: CircularProgressIndicator());
+                          }
+                          if (snap.hasError) {
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(20),
+                                child: Text(
+                                  'Error: ${snap.error}',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.hindSiliguri(
+                                      color: AC.error, height: 1.5),
+                                ),
+                              ),
+                            );
+                          }
+                          final docs = snap.data?.docs ?? [];
+                          if (docs.isEmpty) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.wifi_off_rounded,
+                                      size: 56,
+                                      color: AC.grey.withOpacity(0.4)),
+                                  const SizedBox(height: 14),
+                                  Text(
+                                    'No packages yet',
+                                    style: GoogleFonts.hindSiliguri(
+                                        fontSize: 15, color: AC.grey),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Tap "New Package" to add your first one',
+                                    style: GoogleFonts.hindSiliguri(
+                                        fontSize: 12, color: AC.grey),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                          return ListView.separated(
+                            itemCount: docs.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (_, i) {
+                              final d = docs[i];
+                              final m = d.data() as Map<String, dynamic>;
+                              final active = m['isActive'] as bool? ?? true;
+                              return Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: AC.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: AC.cardShadow,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 48,
+                                      height: 48,
+                                      decoration: BoxDecoration(
+                                        gradient: AC.heroGradient,
+                                        borderRadius:
+                                            BorderRadius.circular(14),
+                                      ),
+                                      child: const Icon(Icons.wifi_rounded,
+                                          color: Colors.white, size: 24),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Text(
+                                                (m['name'] ?? '').toString(),
+                                                style:
+                                                    GoogleFonts.hindSiliguri(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        color: AC.ink,
+                                                        height: 1.5),
+                                              ),
+                                              if (!active) ...[
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  padding: const EdgeInsets
+                                                          .symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: AC.greyLight,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            20),
+                                                  ),
+                                                  child: Text('INACTIVE',
+                                                      style: GoogleFonts
+                                                          .poppins(
+                                                              fontSize: 9,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w700,
+                                                              color:
+                                                                  AC.grey)),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '৳${m['price'] ?? 0} per month',
+                                            style:
+                                                GoogleFonts.poppins(
+                                                    fontSize: 14,
+                                                    fontWeight:
+                                                        FontWeight.w700,
+                                                    color: AC.primary,
+                                                    height: 1.5),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      onPressed: () => _showAddDialog(
+                                          existing: m, id: d.id),
+                                      icon: const Icon(
+                                          Icons.edit_rounded,
+                                          color: AC.primary),
+                                    ),
+                                    IconButton(
+                                      onPressed: () => _confirmDelete(
+                                          d.id,
+                                          (m['name'] ?? '').toString()),
+                                      icon: const Icon(
+                                          Icons.delete_outline_rounded,
+                                          color: AC.error),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+          }
+          ENDPKG
+          sed -i 's/^          //' lib/pages/packages.dart
+
+      - name: Patch shell.dart - add Packages nav
+        run: |
+          python3 << 'ENDPY'
+          with open('lib/shell.dart') as f:
+              c = f.read()
+
+          # Add import
+          if "import 'pages/packages.dart';" not in c:
+              c = c.replace(
+                  "import 'pages/notices.dart';",
+                  "import 'pages/notices.dart';\nimport 'pages/packages.dart';",
+                  1,
+              )
+              print("Import added")
+
+          # Add titles
+          c = c.replace(
+              "final _titles = ['ড্যাশবোর্ড', 'গ্রাহক', 'পেমেন্ট', 'নোটিশ'];",
+              "final _titles = ['ড্যাশবোর্ড', 'গ্রাহক', 'পেমেন্ট', 'নোটিশ', 'প্যাকেজ'];",
+          )
+          c = c.replace(
+              "final _titles = ['ড্যাশবোর্ড', 'গ্রাহক', 'পেমেন্ট', 'নোটিশ'];",
+              "final _titles = ['ড্যাশবোর্ড', 'গ্রাহক', 'পেমেন্ট', 'নোটিশ', 'প্যাকেজ'];",
+          )
+          # English version
+          c = c.replace(
+              "final _titles = ['Dashboard', 'Customers', 'Payments', 'Notices'];",
+              "final _titles = ['Dashboard', 'Customers', 'Payments', 'Notices', 'Packages'];",
+          )
+
+          # Add page in pages list
+          c = c.replace(
+              "const NoticesPage(),\n      ];",
+              "const NoticesPage(),\n        const PackagesPage(),\n      ];",
+          )
+          c = c.replace(
+              "const NoticesPage(),\n      ];",
+              "const NoticesPage(),\n        const PackagesPage(),\n      ];",
+          )
+
+          # Add nav item
+          c = c.replace(
+              "NavigationDestination(\n              icon: Icon(Icons.campaign_rounded),\n              selectedIcon:\n                  Icon(Icons.campaign_rounded, color: AC.primary),\n              label: 'Notices'),",
+              "NavigationDestination(\n              icon: Icon(Icons.campaign_rounded),\n              selectedIcon:\n                  Icon(Icons.campaign_rounded, color: AC.primary),\n              label: 'Notices'),\n          NavigationDestination(\n              icon: Icon(Icons.wifi_rounded),\n              selectedIcon: Icon(Icons.wifi_rounded, color: AC.primary),\n              label: 'Packages'),",
+          )
+
+          with open('lib/shell.dart', 'w') as f:
+              f.write(c)
+          ENDPY
+          grep -n "PackagesPage\|Packages'" lib/shell.dart | head -10
+
+      - name: Commit
+        run: |
+          git config user.name "JAJ Net Bot"
+          git config user.email "bot@jajnet.local"
+          git add lib/
+          git commit -m "Add Packages management page" || echo "no change"
+          git push
