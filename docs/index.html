@@ -11,7 +11,6 @@
 </head>
 <body>
 
-<!-- LOADING -->
 <div id="loadingScreen" class="loading-screen">
   <div class="loading-logo">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
@@ -23,7 +22,6 @@
   </div>
 </div>
 
-<!-- LOGIN -->
 <div id="loginScreen" class="login-screen hidden">
   <div class="login-card">
     <div class="login-logo">
@@ -43,7 +41,7 @@
     <div class="field">
       <span class="field-icon">&#128274;</span>
       <input id="passwordInput" type="password" autocomplete="current-password" placeholder="পাসওয়ার্ড">
-      <button id="togglePass" class="eye-btn" type="button" aria-label="show">&#128065;</button>
+      <button id="togglePass" class="eye-btn" type="button">&#128065;</button>
     </div>
     <button id="loginBtn" class="primary-btn" type="button">
       <span id="loginBtnText">লগইন করুন</span>
@@ -53,7 +51,6 @@
   </div>
 </div>
 
-<!-- MAIN APP -->
 <div id="mainApp" class="main-app hidden">
   <aside id="sidebar" class="sidebar">
     <div class="sidebar-brand">
@@ -71,28 +68,29 @@
       </div>
     </div>
     <nav class="sidebar-nav">
-      <button class="nav-item active" data-page="dashboard">
+      <button type="button" class="nav-item active" data-page="dashboard">
         <span class="nav-icon">&#9638;</span><span>ড্যাশবোর্ড</span>
       </button>
-      <button class="nav-item" data-page="customers">
+      <button type="button" class="nav-item" data-page="customers">
         <span class="nav-icon">&#128101;</span><span>গ্রাহক</span>
       </button>
-      <button class="nav-item" data-page="payments">
+      <button type="button" class="nav-item" data-page="payments">
         <span class="nav-icon">&#128179;</span><span>পেমেন্ট</span>
         <span id="pendingBadge" class="badge hidden">0</span>
       </button>
-      <button class="nav-item" data-page="notices">
+      <button type="button" class="nav-item" data-page="notices">
         <span class="nav-icon">&#128226;</span><span>নোটিশ</span>
       </button>
     </nav>
-    <button id="logoutBtn" class="logout-btn">
+    <button id="logoutBtn" type="button" class="logout-btn">
       <span class="nav-icon">&#10162;</span><span>লগআউট</span>
     </button>
+    <div class="sidebar-version">v3.0</div>
   </aside>
 
   <main class="content">
     <header class="topbar">
-      <button id="menuBtn" class="menu-btn" aria-label="menu">
+      <button id="menuBtn" class="menu-btn" type="button" aria-label="menu">
         <span></span><span></span><span></span>
       </button>
       <h2 id="pageTitle" class="page-title">ড্যাশবোর্ড</h2>
@@ -100,9 +98,11 @@
     </header>
     <div id="pageBody" class="page-body"></div>
   </main>
+
+  <div id="sidebarBackdrop" class="sidebar-backdrop hidden"></div>
 </div>
 
-<div id="overlay" class="overlay hidden"></div>
+<div id="modalOverlay" class="modal-overlay hidden"></div>
 <div id="modal" class="modal hidden">
   <div class="modal-content" id="modalContent"></div>
 </div>
