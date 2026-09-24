@@ -54,18 +54,18 @@ builder: (context, paySnap) {
   final recent = users.take(5).toList();
 
   return SingleChildScrollView(
-    padding: const EdgeInsets.all(20),
+    padding: const EdgeInsets.all(18),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _welcomeCard(),
-        const SizedBox(height: 22),
+        const SizedBox(height: 20),
         Text('ব্যবসার সারসংক্ষেপ',
             style: GoogleFonts.hindSiliguri(
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: FontWeight.w700,
                 color: AC.ink)),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         _statGrid([
           _stat('মোট গ্রাহক', '${users.length}',
               Icons.people_alt_rounded, AC.info),
@@ -75,71 +75,22 @@ builder: (context, paySnap) {
               Icons.warning_amber_rounded, AC.warning),
           _stat('Expired', '$expired',
               Icons.cancel_rounded, AC.error),
-          _stat('পেন্ডিং পেমেন্ট', '$pending',
+          _stat('পেন্ডিং', '$pending',
               Icons.pending_actions_rounded, AC.warning),
-          _stat('মোট বকেয়া',
+          _stat('বকেয়া',
               '৳${dueAmount.toStringAsFixed(0)}',
               Icons.account_balance_wallet_rounded,
               AC.error),
         ]),
+        const SizedBox(height: 20),
+        _todayCard(todayCollection),
         const SizedBox(height: 22),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: AC.heroGradient,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: AC.primary.withOpacity(0.25),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.22),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(Icons.today_rounded,
-                    color: Colors.white, size: 26),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    Text('আজকের আদায়',
-                        style: GoogleFonts.hindSiliguri(
-                            fontSize: 13,
-                            color: Colors.white
-                                .withOpacity(0.92))),
-                    const SizedBox(height: 2),
-                    Text(
-                        '৳${todayCollection.toStringAsFixed(0)}',
-                        style: GoogleFonts.poppins(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('সাম্প্রতিক গ্রাহক',
                 style: GoogleFonts.hindSiliguri(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: AC.ink)),
             Text('${users.length} জন',
@@ -147,101 +98,8 @@ builder: (context, paySnap) {
                     fontSize: 12, color: AC.grey)),
           ],
         ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AC.white,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: AC.cardShadow,
-          ),
-          child: recent.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Center(
-                    child: Text('কোনো গ্রাহক নেই',
-                        style: GoogleFonts.hindSiliguri(
-                            color: AC.grey)),
-                  ),
-                )
-              : Column(
-                  children: recent.map((d) {
-                    final m =
-                        d.data() as Map<String, dynamic>;
-                    final s = (m['status'] ?? '')
-                        .toString();
-                    final color = s == 'active'
-                        ? AC.success
-                        : s == 'due'
-                            ? AC.warning
-                            : AC.error;
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 6),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 20,
-                            backgroundColor: AC.primary
-                                .withOpacity(0.15),
-                            child: Text(
-                              (m['name'] ?? 'U')
-                                  .toString()
-                                  .substring(0, 1)
-                                  .toUpperCase(),
-                              style: GoogleFonts.poppins(
-                                  fontWeight:
-                                      FontWeight.w700,
-                                  color: AC.primary),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
-                              children: [
-                                Text(m['name'] ?? '',
-                                    style: GoogleFonts
-                                        .hindSiliguri(
-                                            fontWeight:
-                                                FontWeight
-                                                    .w600,
-                                            color: AC.ink)),
-                                Text(
-                                    '${m['package'] ?? ''} • ৳${m['packagePrice'] ?? 0}',
-                                    style: GoogleFonts
-                                        .hindSiliguri(
-                                            fontSize: 12,
-                                            color:
-                                                AC.grey)),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding:
-                                const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4),
-                            decoration: BoxDecoration(
-                              color:
-                                  color.withOpacity(0.12),
-                              borderRadius:
-                                  BorderRadius.circular(20),
-                            ),
-                            child: Text(s.toUpperCase(),
-                                style: GoogleFonts.poppins(
-                                    fontSize: 10,
-                                    fontWeight:
-                                        FontWeight.w600,
-                                    color: color)),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
-        ),
+        const SizedBox(height: 10),
+        _recentList(recent),
         const SizedBox(height: 30),
       ],
     ),
@@ -255,14 +113,14 @@ builder: (context, paySnap) {
   Widget _welcomeCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: AC.heroGradient,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
 BoxShadow(
   color: AC.primary.withOpacity(0.25),
-  blurRadius: 22,
+  blurRadius: 20,
   offset: const Offset(0, 10),
 ),
         ],
@@ -275,36 +133,173 @@ Expanded(
     children: [
       Text('স্বাগতম 👋',
           style: GoogleFonts.hindSiliguri(
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: FontWeight.w700,
               color: Colors.white)),
       const SizedBox(height: 4),
-      Text('আপনার JAJ Net ব্যবসার সারসংক্ষেপ',
+      Text('JAJ Net ব্যবসার সারসংক্ষেপ',
           style: GoogleFonts.hindSiliguri(
-              fontSize: 13,
+              fontSize: 12,
               color: Colors.white.withOpacity(0.92))),
-      const SizedBox(height: 12),
+      const SizedBox(height: 10),
       Text(
-          DateFormat('EEEE, dd MMMM yyyy')
+          DateFormat('dd MMM yyyy, EEEE')
               .format(DateTime.now()),
           style: GoogleFonts.poppins(
-              fontSize: 12,
+              fontSize: 11,
               color: Colors.white.withOpacity(0.88))),
     ],
   ),
 ),
 Container(
-  width: 62,
-  height: 62,
+  width: 54,
+  height: 54,
   decoration: BoxDecoration(
     color: Colors.white.withOpacity(0.22),
-    borderRadius: BorderRadius.circular(18),
+    borderRadius: BorderRadius.circular(16),
   ),
   child: const Icon(Icons.wifi_rounded,
-      color: Colors.white, size: 32),
+      color: Colors.white, size: 28),
 ),
         ],
       ),
+    );
+  }
+
+  Widget _todayCard(double amount) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        gradient: AC.heroGradient,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+BoxShadow(
+  color: AC.primary.withOpacity(0.25),
+  blurRadius: 18,
+  offset: const Offset(0, 8),
+),
+        ],
+      ),
+      child: Row(
+        children: [
+Container(
+  width: 46,
+  height: 46,
+  decoration: BoxDecoration(
+    color: Colors.white.withOpacity(0.22),
+    borderRadius: BorderRadius.circular(12),
+  ),
+  child: const Icon(Icons.today_rounded,
+      color: Colors.white, size: 24),
+),
+const SizedBox(width: 14),
+Expanded(
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text('আজকের আদায়',
+          style: GoogleFonts.hindSiliguri(
+              fontSize: 12,
+              color: Colors.white.withOpacity(0.92))),
+      const SizedBox(height: 2),
+      Text('৳${amount.toStringAsFixed(0)}',
+          style: GoogleFonts.poppins(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: Colors.white)),
+    ],
+  ),
+),
+        ],
+      ),
+    );
+  }
+
+  Widget _recentList(List<QueryDocumentSnapshot> recent) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AC.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AC.cardShadow,
+      ),
+      child: recent.isEmpty
+? Padding(
+    padding: const EdgeInsets.all(20),
+    child: Center(
+      child: Text('কোনো গ্রাহক নেই',
+          style: GoogleFonts.hindSiliguri(
+              color: AC.grey)),
+    ),
+  )
+: Column(
+    children: recent.map((d) {
+      final m = d.data() as Map<String, dynamic>;
+      final s = (m['status'] ?? '').toString();
+      final color = s == 'active'
+          ? AC.success
+          : s == 'due'
+              ? AC.warning
+              : AC.error;
+      return Padding(
+        padding:
+            const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor:
+                  AC.primary.withOpacity(0.15),
+              child: Text(
+                (m['name'] ?? 'U')
+                    .toString()
+                    .substring(0, 1)
+                    .toUpperCase(),
+                style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AC.primary),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+                  Text(m['name'] ?? '',
+                      style: GoogleFonts.hindSiliguri(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AC.ink)),
+                  Text(
+                      '${m['package'] ?? ''} • ৳${m['packagePrice'] ?? 0}',
+                      style: GoogleFonts.hindSiliguri(
+                          fontSize: 11,
+                          color: AC.grey)),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(s.toUpperCase(),
+                  style: GoogleFonts.poppins(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      color: color)),
+            ),
+          ],
+        ),
+      );
+    }).toList(),
+  ),
     );
   }
 
@@ -312,10 +307,10 @@ Container(
     return LayoutBuilder(builder: (context, c) {
       final cols = c.maxWidth > 900
 ? 3
-: c.maxWidth > 560
+: c.maxWidth > 480
     ? 2
-    : 1;
-      final spacing = 12.0;
+    : 2;
+      final spacing = 10.0;
       final totalSpacing = spacing * (cols - 1);
       final itemWidth = (c.maxWidth - totalSpacing) / cols;
       return Wrap(
@@ -324,7 +319,7 @@ Container(
         children: items.map((s) {
 return SizedBox(
   width: itemWidth,
-  height: 88,
+  height: 72,
   child: _statCard(s),
 );
         }).toList(),
@@ -334,30 +329,31 @@ return SizedBox(
 
   _StatData _stat(
       String label, String value, IconData icon, Color color) {
-    return _StatData(label: label, value: value, icon: icon, color: color);
+    return _StatData(
+        label: label, value: value, icon: icon, color: color);
   }
 
   Widget _statCard(_StatData s) {
     return Container(
       padding: const EdgeInsets.symmetric(
-horizontal: 16, vertical: 12),
+horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: AC.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: AC.cardShadow,
       ),
       child: Row(
         children: [
 Container(
-  width: 46,
-  height: 46,
+  width: 38,
+  height: 38,
   decoration: BoxDecoration(
     color: s.color.withOpacity(0.12),
-    borderRadius: BorderRadius.circular(12),
+    borderRadius: BorderRadius.circular(10),
   ),
-  child: Icon(s.icon, color: s.color, size: 24),
+  child: Icon(s.icon, color: s.color, size: 20),
 ),
-const SizedBox(width: 14),
+const SizedBox(width: 10),
 Expanded(
   child: Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -365,15 +361,17 @@ Expanded(
     children: [
       Text(s.label,
           style: GoogleFonts.hindSiliguri(
-              fontSize: 12, color: AC.grey),
+              fontSize: 11, color: AC.grey),
           maxLines: 1,
           overflow: TextOverflow.ellipsis),
-      const SizedBox(height: 2),
+      const SizedBox(height: 1),
       Text(s.value,
           style: GoogleFonts.poppins(
-              fontSize: 20,
+              fontSize: 17,
               fontWeight: FontWeight.w700,
-              color: AC.ink)),
+              color: AC.ink),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis),
     ],
   ),
 ),
