@@ -575,15 +575,21 @@ function paintPackages(){
 function openAddPackage(existing){
   var isEdit = existing !== null && existing !== undefined;
   var name = isEdit ? (existing.name || '') : '';
+  var speedNum = name ? name.replace(/\s*Mbps\s*$/i, '') : '';
   var price = isEdit ? (existing.price || 525) : 525;
   var order = isEdit ? (existing.order || 1) : (pkgCache.length + 1);
   var active = isEdit ? (existing.isActive !== false) : true;
 
   openModal(
-    '<div class="modal-title">' + (isEdit ? 'Edit Package' : 'New Package') + '</div>' +
-    '<div class="form-row"><label>Speed (e.g. 20 Mbps)</label><input id="pkgName" value="' + esc(name) + '" placeholder="20 Mbps"></div>' +
-    '<div class="form-row"><label>Monthly Price (৳)</label><input id="pkgPrice" type="number" value="' + price + '"></div>' +
-    '<div class="form-row"><label>Display Order</label><input id="pkgOrder" type="number" value="' + order + '"></div>' +
+  '<div class="modal-title">' + (isEdit ? 'Edit Package' : 'New Package') + '</div>' +
+  '<div class="form-row"><label>Speed</label>' +
+    '<div style="position:relative">' +
+      '<input id="pkgName" type="number" value="' + speedNum + '" placeholder="20" style="padding-right:70px">' +
+      '<span style="position:absolute;right:16px;top:50%;transform:translateY(-50%);color:var(--grey);font-weight:600;font-size:14px;pointer-events:none">Mbps</span>' +
+    '</div>' +
+  '</div>' +
+  '<div class="form-row"><label>Monthly Price (৳)</label><input id="pkgPrice" type="number" value="' + price + '" placeholder="525"></div>' +
+  '<div class="form-row"><label>Display Order</label><input id="pkgOrder" type="number" value="' + order + '" placeholder="1"></div>' +
     '<div class="form-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
       '<input type="checkbox" id="pkgActive" ' + (active ? 'checked' : '') + ' style="width:auto"> Active (visible to customers)' +
     '</label></div>' +
