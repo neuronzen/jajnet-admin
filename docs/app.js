@@ -359,7 +359,7 @@ function openCustomerDetail(id){
   if(!m)return;
   openModal(
     '<div class="modal-title">👤 '+esc(m.name||'')+'</div>'+
-    '<button class="btn btn-primary" id="dcCollect" type="button" style="width:100%;justify-content:center;margin-bottom:18px">Collect Payment</button>' +
+    
     '<div class="form-row"><label>Name</label><input id="dcName" value="'+esc(m.name||'')+'"></div>'+
     '<div class="form-row"><label>Mobile</label><input id="dcPhone" value="'+esc(m.phone||'')+'"></div>'+
     '<div class="form-row"><label>Email</label><input value="'+esc(m.email||'')+'" disabled style="opacity:.6"></div>'+
@@ -370,6 +370,7 @@ function openCustomerDetail(id){
       '<div class="form-row"><label>Due Amount (৳)</label><input id="dcDue" type="number" value="'+(m.dueAmount||0)+'"></div>'+
     '</div>'+
     '<div class="form-row"><label>Status</label><select id="dcStatus">'+['active','due','expired'].map(function(s){return '<option value="'+s+'" '+(s===m.status?'selected':'')+'>'+s.charAt(0).toUpperCase()+s.slice(1)+'</option>'}).join('')+'</select></div>'+
+    '<button class="btn btn-success" id="dcCollect" type="button" style="width:100%;justify-content:center;margin-top:6px;margin-bottom:10px">Collect Payment</button>' +
     '<div class="modal-actions"><button class="btn btn-outline" id="dcCancel" type="button">Cancel</button><button class="btn btn-primary" id="dcSave" type="button">Save Changes</button></div>'
   );
   $('#dcCollect').onclick = function(){
