@@ -813,3 +813,159 @@ function collectPayment(customerId, customerName, currentDue){
 verifyPayment = verifyPaymentNew;
 rejectPayment = rejectPaymentNew;
 console.log('[JAJ Net Admin] v4.0 loaded');
+
+// ============ PAYMENT v8a ============
+var custLookup = {};
+
+async function renderPayments(){
+  var body = document.querySelector('#pageBody');
+  body.innerHTML = '<div class="empty">Loading...</div>';
+  try {
+    var paySnap = await db.collection('payments').get();
+    var usersSnap = await db.collection('users').get();
+    custLookup = {};
+    usersSnap.docs.forEach(function(d){
+      var u = d.data();
+      custLookup[d.id] = {
+        name: u.name || 'Unknown',
+        phone: u.phone || '',
+        due: Number(u.dueAmount || 0)
+      };
+    });
+    payCache = paySnap.docs.map(function(d){
+      var o = {id: d.id}; var x = d.data();
+      for (var k in x) o[k] = x[k];
+      return o;
+    });
+    paintPayments();
+  } catch(e){
+    console.error(e);
+    body.innerHTML = '<div class="empty">Failed to load</div>';
+  }
+}
+
+function paymentCard(p){
+  var s = p.status || 'pending';
+  var cls = s === 'verified' ? 'pill-success' : s === 'pending' ? 'pill-warning' : 'pill-error';
+  var ic = s === 'verified' ? '&#10003;' : s === 'pending' ? '&#8987;' : '&#10005;';
+  var cust = custLookup[p.userId] || { name: 'Unknown', phone: '' };
+  return '<div class="card">' +
+    '<div class="list-row" style="border:none;padding:0 0 12px">' +
+      '<div class="stat-icon stat-' + (s==='verified'?'success':s==='pending'?'warning':'error') + '" style="width:44px;height:44px">' + ic + '</div>' +
+      '<div class="list-main">' +
+        '<div class="list-title">' + esc(cust.name) + ' <span class="num" style="color:var(--primary);font-weight:700;margin-left:4px">&#2547;' + (p.amount||0) + '</span></div>' +
+        '<div class="list-sub">' + esc(cust.phone || '') + '</div>' +
+        '<div class="list-sub">TrxID: ' + esc(p.trxId||'') + ' &bull; ' + esc(p.method||'bKash') + '</div>' +
+      '</div>' +
+      '<span class="pill ' + cls + '">' + s.toUpperCase() + '</span>' +
+    '</div>' +
+    (s==='pending' ?
+      '<div style="display:flex;gap:10px">' +
+        '<button class="btn btn-danger pay-reject" data-id="' + p.id + '" type="button" style="flex:1;justify-content:center">Reject</button>' +
+        '<button class="btn btn-success pay-verify" data-id="' + p.id + '" type="button" style="flex:1;justify-content:center">Verify</button>' +
+      '</div>' : '') +
+    '</div>';
+}
+
+// ============ PAYMENT v8b: Verify + Reject Modals ============
+function verifyPaymentNew(id){
+  var pay = payCache.filter(function(x){return x.id===id})[0];
+  if (!pay) return toast('Payment not found','error');
+  var cust = custLookup[pay.userId] || { name: 'Unknown', phone: '', due: 0 };
+  var currentDue = cust.due;
+  var newDue = currentDue - Number(pay.amount||0);
+  if (pay.status !== 'pending') return toast('Already ' + pay.status, 'error');
+  if (Number(pay.amount||0) > currentDue) {
+    return toast('Warning: ' + cust.name + ' has only ' + currentDue + ' due. Cannot verify ' + pay.amount + '.', 'error');
+  }
+  openModal(
+    '<div class="modal-title">Confirm Verification</div>' +
+    '<div style="text-align:center;padding:10px 0 20px">' +
+      '<div class="stat-icon stat-success" style="width:64px;height:64px;font-size:30px;margin:0 auto 14px;border-radius:50%">&#10003;</div>' +
+      '<div style="font-family:Poppins;font-size:24px;font-weight:700;color:var(--ink)">&#2547;' + pay.amount + '</div>' +
+      '<div style="color:var(--grey);font-size:13px;margin-top:6px">' + esc(cust.name) + ' &bull; ' + esc(cust.phone) + '</div>' +
+    '</div>' +
+    '<div style="background:var(--cream);padding:14px;border-radius:12px;margin-bottom:18px">' +
+      '<div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="color:var(--grey);font-size:13px">Current Due</span><span style="font-family:Poppins;font-weight:700;color:var(--error)">&#2547;' + currentDue + '</span></div>' +
+      '<div style="display:flex;justify-content:space-between"><span style="color:var(--grey);font-size:13px">After Verification</span><span style="font-family:Poppins;font-weight:700;color:var(--success)">&#2547;' + newDue + '</span></div>' +
+    '</div>' +
+    '<div class="modal-actions"><button class="btn btn-outline" id="vCancel" type="button">Cancel</button><button class="btn btn-success" id="vConfirm" type="button">Confirm Verify</button></div>'
+  );
+  document.querySelector('#vCancel').onclick = closeModal;
+  document.querySelector('#vConfirm').onclick = function(){
+    this.disabled = true;
+    this.textContent = 'Verifying...';
+    doVerifyPayment(id);
+  };
+}
+
+async function doVerifyPayment(id){
+  var payRef = db.collection('payments').doc(id);
+  try {
+    var paySnap = await payRef.get();
+    if (!paySnap.exists) return toast('Not found','error');
+    var pay = paySnap.data();
+    if (pay.status !== 'pending') return toast('Already processed','error');
+    var userRef = db.collection('users').doc(pay.userId);
+    var userSnap = await userRef.get();
+    if (!userSnap.exists) return toast('Customer not found','error');
+    var adminEmail = auth.currentUser ? auth.currentUser.email : 'unknown';
+    var finalDue = 0;
+    var custName = userSnap.data().name || 'Customer';
+    await db.runTransaction(async function(tx){
+      var p = await tx.get(payRef);
+      if (p.data().status !== 'pending') throw new Error('Already processed');
+      var u = await tx.get(userRef);
+      var cd = Number(u.data().dueAmount || 0);
+      var amt = Number(p.data().amount || 0);
+      if (amt > cd) throw new Error('Amount exceeds due');
+      var nd = cd - amt;
+      finalDue = nd;
+      tx.update(payRef, {status: 'verified', verifiedAt: firebase.firestore.FieldValue.serverTimestamp(), verifiedBy: adminEmail, dueAfter: nd});
+      tx.update(userRef, {dueAmount: nd, lastPaymentDate: firebase.firestore.FieldValue.serverTimestamp(), lastPaymentAmount: amt});
+    });
+    closeModal();
+    toast('Verified. ' + custName + ' due now ' + finalDue, 'success');
+    renderPayments();
+  } catch(e){
+    console.error(e); toast('Error: ' + e.message, 'error'); closeModal();
+  }
+}
+
+function rejectPaymentNew(id){
+  var pay = payCache.filter(function(x){return x.id===id})[0];
+  if (!pay) return toast('Not found','error');
+  var cust = custLookup[pay.userId] || { name: 'Unknown', phone: '' };
+  openModal(
+    '<div class="modal-title">Reject Payment</div>' +
+    '<div style="padding:10px 0 16px">' +
+      '<div style="font-family:Poppins;font-size:18px;font-weight:700;color:var(--ink);margin-bottom:6px">&#2547;' + pay.amount + '</div>' +
+      '<div style="color:var(--grey);font-size:13px">' + esc(cust.name) + ' &bull; ' + esc(cust.phone) + '</div>' +
+      '<div style="color:var(--grey);font-size:12px;margin-top:4px">TrxID: ' + esc(pay.trxId||'') + '</div>' +
+    '</div>' +
+    '<div class="form-row"><label>Reason for rejection</label><textarea id="rjReason" rows="3">Invalid TrxID</textarea></div>' +
+    '<div class="modal-actions"><button class="btn btn-outline" id="rjCancel" type="button">Cancel</button><button class="btn btn-danger" id="rjConfirm" type="button">Confirm Reject</button></div>'
+  );
+  document.querySelector('#rjCancel').onclick = closeModal;
+  document.querySelector('#rjConfirm').onclick = async function(){
+    var reason = document.querySelector('#rjReason').value.trim();
+    if (!reason) return toast('Provide a reason','error');
+    this.disabled = true;
+    this.textContent = 'Rejecting...';
+    try {
+      await db.collection('payments').doc(id).update({
+        status: 'rejected',
+        rejectedReason: reason,
+        rejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        rejectedBy: auth.currentUser ? auth.currentUser.email : 'unknown'
+      });
+      closeModal();
+      toast('Payment rejected', 'error');
+      renderPayments();
+    } catch(e){ console.error(e); toast('Error: ' + e.message, 'error'); }
+  };
+}
+
+// Override old handlers
+verifyPayment = verifyPaymentNew;
+rejectPayment = rejectPaymentNew;
