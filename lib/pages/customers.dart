@@ -47,7 +47,6 @@ list = list.where((m) {
   return n.contains(q) || p.contains(q) || e.contains(q);
 }).toList();
         }
-
         if (_filter != 'all') {
 list = list
     .where((m) => (m['status'] ?? '') == _filter)
@@ -55,32 +54,25 @@ list = list
         }
 
         return Padding(
-padding: const EdgeInsets.all(24),
+padding: const EdgeInsets.all(20),
 child: Column(
   crossAxisAlignment: CrossAxisAlignment.start,
   children: [
-    Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    Row(
       children: [
-        SizedBox(
-          width: 320,
+        Expanded(
           child: TextField(
             onChanged: (v) => setState(() => _search = v),
             decoration: const InputDecoration(
-              hintText: 'নাম, ফোন বা ইমেইল দিয়ে খুঁজুন...',
+              hintText: 'খুঁজুন...',
               prefixIcon: Icon(Icons.search_rounded,
                   color: AC.primary, size: 22),
             ),
           ),
         ),
-        _filterChip('সব', 'all'),
-        _filterChip('Active', 'active'),
-        _filterChip('Due', 'due'),
-        _filterChip('Expired', 'expired'),
+        const SizedBox(width: 12),
         SizedBox(
-          height: 52,
+          height: 54,
           child: ElevatedButton.icon(
             onPressed: _showAddDialog,
             icon: const Icon(
@@ -98,16 +90,32 @@ child: Column(
         ),
       ],
     ),
-    const SizedBox(height: 20),
+    const SizedBox(height: 14),
+    SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _chip('সব', 'all'),
+          const SizedBox(width: 8),
+          _chip('Active', 'active'),
+          const SizedBox(width: 8),
+          _chip('Due', 'due'),
+          const SizedBox(width: 8),
+          _chip('Expired', 'expired'),
+        ],
+      ),
+    ),
+    const SizedBox(height: 16),
     Text('মোট ${list.length} জন',
         style: GoogleFonts.hindSiliguri(
             fontSize: 13, color: AC.grey)),
-    const SizedBox(height: 12),
+    const SizedBox(height: 10),
     Expanded(
       child: list.isEmpty
           ? Center(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment:
+                    MainAxisAlignment.center,
                 children: [
                   Icon(Icons.people_outline,
                       size: 64,
@@ -116,10 +124,6 @@ child: Column(
                   Text('কোনো গ্রাহক নেই',
                       style: GoogleFonts.hindSiliguri(
                           color: AC.grey)),
-                  const SizedBox(height: 8),
-                  Text('"নতুন গ্রাহক" বাটনে ক্লিক করুন',
-                      style: GoogleFonts.hindSiliguri(
-                          fontSize: 12, color: AC.grey)),
                 ],
               ),
             )
@@ -127,7 +131,8 @@ child: Column(
               itemCount: list.length,
               separatorBuilder: (_, __) =>
                   const SizedBox(height: 10),
-              itemBuilder: (_, i) => _customerCard(list[i]),
+              itemBuilder: (_, i) =>
+                  _customerCard(list[i]),
             ),
     ),
   ],
@@ -137,17 +142,18 @@ child: Column(
     );
   }
 
-  Widget _filterChip(String label, String value) {
+  Widget _chip(String label, String value) {
     final active = _filter == value;
     return GestureDetector(
       onTap: () => setState(() => _filter = value),
       child: Container(
-        padding:
-  const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        padding: const EdgeInsets.symmetric(
+  horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
 color: active ? AC.primary : AC.white,
-borderRadius: BorderRadius.circular(14),
-boxShadow: active ? null : AC.cardShadow,
+borderRadius: BorderRadius.circular(30),
+border: Border.all(
+    color: active ? AC.primary : AC.greyLight),
         ),
         child: Text(label,
   style: GoogleFonts.hindSiliguri(
@@ -244,7 +250,7 @@ children: [
                   : AC.success)),
     ],
   ),
-  const SizedBox(width: 8),
+  const SizedBox(width: 6),
   const Icon(Icons.chevron_right_rounded,
       color: AC.grey),
 ],
