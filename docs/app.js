@@ -601,8 +601,9 @@ function openAddPackage(existing){
 
   $('#pkgCancel').onclick = closeModal;
   $('#pkgSave').onclick = function(){
-    var n = $('#pkgName').value.trim();
-    if (!n) return toast('Enter speed name', 'error');
+    var rawSpeed = $('#pkgName').value.trim();
+if (!rawSpeed) return toast('Enter speed', 'error');
+var n = rawSpeed.replace(/\s*Mbps\s*$/i, '') + ' Mbps';
     var data = {
       name: n,
       price: Number($('#pkgPrice').value) || 0,
