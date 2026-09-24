@@ -1,0 +1,268 @@
+name: Add Packages to JS Admin
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch index.html - add Packages nav
+        run: |
+          python3 << 'ENDPY'
+          with open('docs/index.html') as f:
+              c = f.read()
+
+          if 'data-page="packages"' not in c:
+              old = '''<button class="nav-item" data-page="notices">
+                  <span class="nav-icon">&#128226;</span><span>নোটিশ</span>
+                </button>'''
+              new = '''<button class="nav-item" data-page="notices">
+                  <span class="nav-icon">&#128226;</span><span>নোটিশ</span>
+                </button>
+                <button class="nav-item" data-page="packages">
+                  <span class="nav-icon">&#128230;</span><span>প্যাকেজ</span>
+                </button>'''
+              c = c.replace(old, new)
+              print("Nav item added")
+
+          with open('docs/index.html','w') as f:
+              f.write(c)
+          ENDPY
+          grep -c 'data-page="packages"' docs/index.html
+
+      - name: Patch app.js - add Packages page + logic
+        run: |
+          python3 << 'ENDPY'
+          with open('docs/app.js') as f:
+              c = f.read()
+
+          # Add packages to PAGES
+          old_pages = """          var PAGES = {
+            dashboard: {title: 'ড্যাশবোর্ড', render: renderDashboard},
+            customers: {title: 'গ্রাহক', render: renderCustomers},
+            payments:  {title: 'পেমেন্ট', render: renderPayments},
+            notices:   {title: 'নোটিশ', render: renderNotices}
+          };"""
+
+          new_pages = """          var PAGES = {
+            dashboard: {title: 'ড্যাশবোর্ড', render: renderDashboard},
+            customers: {title: 'গ্রাহক', render: renderCustomers},
+            payments:  {title: 'পেমেন্ট', render: renderPayments},
+            notices:   {title: 'নোটিশ', render: renderNotices},
+            packages:  {title: 'প্যাকেজ', render: renderPackages}
+          };"""
+
+          if old_pages in c:
+              c = c.replace(old_pages, new_pages)
+              print("PAGES updated")
+          else:
+              # Try alternative
+              c = c.replace(
+                  "notices:   {title: 'নোটিশ', render: renderNotices}\n          };",
+                  "notices:   {title: 'নোটিশ', render: renderNotices},\n            packages:  {title: 'প্যাকেজ', render: renderPackages}\n          };",
+              )
+              print("PAGES updated via alt")
+
+          # Add packages snapshot in startApp
+          old_start = """            unsubs.push(db.collection('notices').onSnapshot(function(){
+              if(currentPage==='notices')renderNotices();
+            },function(e){console.error(e)}));
+            goto('dashboard');"""
+
+          new_start = """            unsubs.push(db.collection('notices').onSnapshot(function(){
+              if(currentPage==='notices')renderNotices();
+            },function(e){console.error(e)}));
+            unsubs.push(db.collection('packages').onSnapshot(function(){
+              if(currentPage==='packages')renderPackages();
+            },function(e){console.error(e)}));
+            goto('dashboard');"""
+
+          if old_start in c:
+              c = c.replace(old_start, new_start)
+              print("startApp updated")
+
+          # Add renderPackages and helpers before the final console.log
+          packages_code = """
+
+          // ============ PACKAGES ============
+          var pkgCache = [];
+
+          function renderPackages(){
+            var body = $('#pageBody');
+            body.innerHTML = '<div class="empty">Loading...</div>';
+            db.collection('packages').orderBy('order').get()
+              .then(function(snap){
+                pkgCache = snap.docs.map(function(d){
+                  var o = {id: d.id};
+                  var x = d.data();
+                  for (var k in x) o[k] = x[k];
+                  return o;
+                });
+                paintPackages();
+              })
+              .catch(function(e){
+                // If orderBy fails (missing field), try without ordering
+                console.error('orderBy failed:', e);
+                db.collection('packages').get().then(function(snap){
+                  pkgCache = snap.docs.map(function(d){
+                    var o = {id: d.id};
+                    var x = d.data();
+                    for (var k in x) o[k] = x[k];
+                    return o;
+                  });
+                  paintPackages();
+                });
+              });
+          }
+
+          function paintPackages(){
+            var body = $('#pageBody');
+            body.innerHTML =
+              '<div class="toolbar" style="justify-content:space-between">'+
+                '<div>'+
+                  '<div style="font-size:16px;font-weight:700">Manage Packages</div>'+
+                  '<div style="font-size:12.5px;color:var(--grey);margin-top:2px">Changes here appear instantly in the customer app</div>'+
+                '</div>'+
+                '<button id="addPkgBtn" class="btn btn-primary" type="button">+ New Package</button>'+
+              '</div>'+
+              '<div id="pkgList" style="margin-top:16px"></div>';
+
+            var list = $('#pkgList');
+            if (pkgCache.length === 0){
+              list.innerHTML = '<div class="empty">No packages yet. Tap "New Package" to add.</div>';
+            } else {
+              list.innerHTML = pkgCache.map(function(p){
+                var active = p.isActive !== false;
+                return '<div class="card" style="display:flex;align-items:center;gap:14px;padding:16px">'+
+                  '<div class="stat-icon stat-info" style="width:48px;height:48px;font-size:22px">&#128225;</div>'+
+                  '<div style="flex:1;min-width:0">'+
+                    '<div style="display:flex;align-items:center;gap:8px">'+
+                      '<div style="font-size:16px;font-weight:700">'+esc(p.name||'')+'</div>'+
+                      (active ? '' : '<span class="pill pill-info">INACTIVE</span>')+
+                    '</div>'+
+                    '<div style="font-family:Poppins;font-size:14px;font-weight:700;color:var(--primary);margin-top:2px">৳'+(p.price||0)+' per month</div>'+
+                  '</div>'+
+                  '<button class="btn btn-outline pkg-edit" data-id="'+p.id+'" type="button" style="padding:8px 14px">Edit</button>'+
+                  '<button class="btn btn-danger pkg-del" data-id="'+p.id+'" data-name="'+esc(p.name||'')+'" type="button" style="padding:8px 14px">Delete</button>'+
+                '</div>';
+              }).join('');
+            }
+
+            $('#addPkgBtn').onclick = function(){ openAddPackage(null); };
+            $$('.pkg-edit').forEach(function(b){
+              b.onclick = function(){
+                var id = b.dataset.id;
+                var p = pkgCache.filter(function(x){return x.id===id})[0];
+                if (p) openAddPackage(p);
+              };
+            });
+            $$('.pkg-del').forEach(function(b){
+              b.onclick = function(){
+                var id = b.dataset.id;
+                var name = b.dataset.name;
+                if (!confirm('Delete package "'+name+'"?')) return;
+                db.collection('packages').doc(id).delete()
+                  .then(function(){
+                    toast('Package deleted ✅','success');
+                    renderPackages();
+                  })
+                  .catch(function(e){
+                    console.error(e);
+                    toast('Delete failed','error');
+                  });
+              };
+            });
+          }
+
+          function openAddPackage(existing){
+            var isEdit = existing !== null;
+            var name = isEdit ? (existing.name||'') : '';
+            var price = isEdit ? (existing.price||525) : 525;
+            var order = isEdit ? (existing.order||1) : (pkgCache.length + 1);
+            var active = isEdit ? (existing.isActive !== false) : true;
+
+            openModal(
+              '<div class="modal-title">'+(isEdit?'✏️ Edit Package':'➕ New Package')+'</div>'+
+              '<div class="form-row"><label>Speed (e.g. 20 Mbps)</label><input id="pkgName" value="'+esc(name)+'" placeholder="20 Mbps"></div>'+
+              '<div class="form-row"><label>Monthly Price (৳)</label><input id="pkgPrice" type="number" value="'+price+'"></div>'+
+              '<div class="form-row"><label>Display Order</label><input id="pkgOrder" type="number" value="'+order+'"></div>'+
+              '<div class="form-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">'+
+                '<input type="checkbox" id="pkgActive" '+(active?'checked':'')+' style="width:auto"> Active (visible to customers)'+
+              '</label></div>'+
+              '<div class="modal-actions">'+
+                '<button class="btn btn-outline" id="pkgCancel" type="button">Cancel</button>'+
+                '<button class="btn btn-primary" id="pkgSave" type="button">'+(isEdit?'Save':'Add')+'</button>'+
+              '</div>'
+            );
+
+            $('#pkgCancel').onclick = closeModal;
+            $('#pkgSave').onclick = function(){
+              var n = $('#pkgName').value.trim();
+              if (!n) return toast('Enter speed name','error');
+              var data = {
+                name: n,
+                price: Number($('#pkgPrice').value) || 0,
+                order: Number($('#pkgOrder').value) || 1,
+                isActive: $('#pkgActive').checked
+              };
+              var btn = $('#pkgSave');
+              btn.disabled = true;
+              btn.textContent = 'Saving...';
+              var promise = isEdit
+                ? db.collection('packages').doc(existing.id).update(data)
+                : db.collection('packages').add(Object.assign({}, data, {createdAt: firebase.firestore.FieldValue.serverTimestamp()}));
+
+              promise.then(function(){
+                closeModal();
+                toast(isEdit ? 'Package updated ✅' : 'Package added ✅', 'success');
+                renderPackages();
+              }).catch(function(e){
+                console.error(e);
+                toast('Save failed: '+e.message, 'error');
+                btn.disabled = false;
+                btn.textContent = isEdit ? 'Save' : 'Add';
+              });
+            };
+          }
+          """
+
+          # Insert before final console.log
+          marker = "console.log('[JAJ Net Admin]"
+          idx = c.rfind(marker)
+          if idx > 0:
+              c = c[:idx] + packages_code + '\n          ' + c[idx:]
+              print("Packages code added")
+          else:
+              c = c + packages_code
+              print("Packages code appended")
+
+          with open('docs/app.js', 'w') as f:
+              f.write(c)
+          ENDPY
+          echo "=== Verify ==="
+          grep -c "renderPackages\|openAddPackage" docs/app.js
+
+      - name: Verify
+        run: |
+          echo "=== Nav in HTML ==="
+          grep "data-page" docs/index.html
+          echo ""
+          echo "=== PAGES in JS ==="
+          grep -A 7 "var PAGES = {" docs/app.js | head -8
+          echo ""
+          echo "=== Packages functions ==="
+          grep "function renderPackages\|function openAddPackage\|function paintPackages" docs/app.js
+
+      - name: Commit
+        run: |
+          git config user.name "JAJ Net Bot"
+          git config user.email "bot@jajnet.local"
+          git add docs/
+          git commit -m "Add Packages management to JS admin panel" || echo "no change"
+          git push
