@@ -7,7 +7,7 @@ import 'shell.dart';
 import 'theme.dart';
 
 const FirebaseOptions firebaseOptions = FirebaseOptions(
-  apiKey: 'AIzaSyAs2g3X7hcN7x99lk1te3vBTlIGhNfryH30',
+  apiKey: 'AIzaSyAs2g3X7hcN7x991kte3vBTIIGNHfryH30',
   appId: '1:862012070477:web:8cee7125b28b5853a51a04',
   messagingSenderId: '862012070477',
   projectId: 'jaj-net',
