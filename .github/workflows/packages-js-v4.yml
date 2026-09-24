@@ -1,4 +1,4 @@
-name: Add Packages to JS Admin v3
+name: Add Packages to JS Admin v4
 
 on:
   workflow_dispatch:
