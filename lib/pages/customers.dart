@@ -16,81 +16,122 @@ class _CustomersPageState extends State<CustomersPage> {
   String _search = '';
   String _filter = 'all';
 
+  void _showAddDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _AddCustomerDialog(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
       stream: AdminService.allUsers,
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+return const Center(child: CircularProgressIndicator());
         }
         var docs = snap.data?.docs ?? [];
         var list = docs.map((d) {
-          final m = d.data() as Map<String, dynamic>;
-          return {'id': d.id, ...m};
+final m = d.data() as Map<String, dynamic>;
+return {'id': d.id, ...m};
         }).toList();
 
         if (_search.isNotEmpty) {
-          final q = _search.toLowerCase();
-          list = list.where((m) {
-            final n = (m['name'] ?? '').toString().toLowerCase();
-            final p = (m['phone'] ?? '').toString();
-            final e = (m['email'] ?? '').toString().toLowerCase();
-            return n.contains(q) || p.contains(q) || e.contains(q);
-          }).toList();
+final q = _search.toLowerCase();
+list = list.where((m) {
+  final n = (m['name'] ?? '').toString().toLowerCase();
+  final p = (m['phone'] ?? '').toString();
+  final e = (m['email'] ?? '').toString().toLowerCase();
+  return n.contains(q) || p.contains(q) || e.contains(q);
+}).toList();
         }
 
         if (_filter != 'all') {
-          list = list
-              .where((m) => (m['status'] ?? '') == _filter)
-              .toList();
+list = list
+    .where((m) => (m['status'] ?? '') == _filter)
+    .toList();
         }
 
         return Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+padding: const EdgeInsets.all(24),
+child: Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        SizedBox(
+          width: 320,
+          child: TextField(
+            onChanged: (v) => setState(() => _search = v),
+            decoration: const InputDecoration(
+              hintText: 'নাম, ফোন বা ইমেইল দিয়ে খুঁজুন...',
+              prefixIcon: Icon(Icons.search_rounded,
+                  color: AC.primary, size: 22),
+            ),
+          ),
+        ),
+        _filterChip('সব', 'all'),
+        _filterChip('Active', 'active'),
+        _filterChip('Due', 'due'),
+        _filterChip('Expired', 'expired'),
+        SizedBox(
+          height: 52,
+          child: ElevatedButton.icon(
+            onPressed: _showAddDialog,
+            icon: const Icon(
+                Icons.person_add_alt_1_rounded,
+                color: Colors.white,
+                size: 20),
+            label: Text(
+              'নতুন গ্রাহক',
+              style: GoogleFonts.hindSiliguri(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+    const SizedBox(height: 20),
+    Text('মোট ${list.length} জন',
+        style: GoogleFonts.hindSiliguri(
+            fontSize: 13, color: AC.grey)),
+    const SizedBox(height: 12),
+    Expanded(
+      child: list.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Expanded(
-                    child: TextField(
-                      onChanged: (v) => setState(() => _search = v),
-                      decoration: const InputDecoration(
-                        hintText: 'নাম, ফোন বা ইমেইল দিয়ে খুঁজুন...',
-                        prefixIcon: Icon(Icons.search_rounded,
-                            color: AC.primary, size: 22),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  _filterChip('সব', 'all'),
-                  const SizedBox(width: 8),
-                  _filterChip('Active', 'active'),
-                  const SizedBox(width: 8),
-                  _filterChip('Due', 'due'),
+                  Icon(Icons.people_outline,
+                      size: 64,
+                      color: AC.grey.withOpacity(0.4)),
+                  const SizedBox(height: 12),
+                  Text('কোনো গ্রাহক নেই',
+                      style: GoogleFonts.hindSiliguri(
+                          color: AC.grey)),
+                  const SizedBox(height: 8),
+                  Text('"নতুন গ্রাহক" বাটনে ক্লিক করুন',
+                      style: GoogleFonts.hindSiliguri(
+                          fontSize: 12, color: AC.grey)),
                 ],
               ),
-              const SizedBox(height: 20),
-              Text('মোট ${list.length} জন',
-                  style: GoogleFonts.hindSiliguri(
-                      fontSize: 13, color: AC.grey)),
-              const SizedBox(height: 12),
-              Expanded(
-                child: list.isEmpty
-                    ? const Center(child: Text('কোনো গ্রাহক নেই'))
-                    : ListView.separated(
-                        itemCount: list.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 10),
-                        itemBuilder: (_, i) {
-                          final m = list[i];
-                          return _customerCard(m);
-                        },
-                      ),
-              ),
-            ],
-          ),
+            )
+          : ListView.separated(
+              itemCount: list.length,
+              separatorBuilder: (_, __) =>
+                  const SizedBox(height: 10),
+              itemBuilder: (_, i) => _customerCard(list[i]),
+            ),
+    ),
+  ],
+),
         );
       },
     );
@@ -101,18 +142,18 @@ class _CustomersPageState extends State<CustomersPage> {
     return GestureDetector(
       onTap: () => setState(() => _filter = value),
       child: Container(
-        padding: const EdgeInsets.symmetric(
-            horizontal: 16, vertical: 12),
+        padding:
+  const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         decoration: BoxDecoration(
-          color: active ? AC.primary : AC.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: active ? null : AC.cardShadow,
+color: active ? AC.primary : AC.white,
+borderRadius: BorderRadius.circular(14),
+boxShadow: active ? null : AC.cardShadow,
         ),
         child: Text(label,
-            style: GoogleFonts.hindSiliguri(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: active ? Colors.white : AC.ink)),
+  style: GoogleFonts.hindSiliguri(
+      fontSize: 13,
+      fontWeight: FontWeight.w600,
+      color: active ? Colors.white : AC.ink)),
       ),
     );
   }
@@ -122,93 +163,363 @@ class _CustomersPageState extends State<CustomersPage> {
     final color = status == 'active'
         ? AC.success
         : status == 'due'
-            ? AC.warning
-            : AC.error;
+  ? AC.warning
+  : AC.error;
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => CustomerDetailPage(
-              uid: m['id'] as String, initial: m),
+builder: (_) => CustomerDetailPage(
+    uid: m['id'] as String, initial: m),
         ),
       ),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AC.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: AC.cardShadow,
+color: AC.white,
+borderRadius: BorderRadius.circular(16),
+boxShadow: AC.cardShadow,
         ),
         child: Row(
-          children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: AC.primary.withOpacity(0.15),
-              child: Text(
-                (m['name'] ?? 'U')
-                    .toString()
-                    .substring(0, 1)
-                    .toUpperCase(),
-                style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AC.primary),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(m['name'] ?? '',
-                      style: GoogleFonts.hindSiliguri(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: AC.ink)),
-                  const SizedBox(height: 2),
-                  Text(
-                      '${m['phone'] ?? ''} • ${m['package'] ?? ''}',
-                      style: GoogleFonts.hindSiliguri(
-                          fontSize: 12, color: AC.grey)),
-                  const SizedBox(height: 2),
-                  Text(m['address'] ?? '',
-                      style: GoogleFonts.hindSiliguri(
-                          fontSize: 11, color: AC.grey)),
-                ],
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(status.toUpperCase(),
-                      style: GoogleFonts.poppins(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: color)),
-                ),
-                const SizedBox(height: 6),
-                Text('৳${m['dueAmount'] ?? 0}',
-                    style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: ((m['dueAmount'] ?? 0) as num) > 0
-                            ? AC.error
-                            : AC.success)),
-              ],
-            ),
-            const SizedBox(width: 8),
-            const Icon(Icons.chevron_right_rounded,
-                color: AC.grey),
-          ],
+children: [
+  CircleAvatar(
+    radius: 24,
+    backgroundColor: AC.primary.withOpacity(0.15),
+    child: Text(
+      (m['name'] ?? 'U')
+          .toString()
+          .substring(0, 1)
+          .toUpperCase(),
+      style: GoogleFonts.poppins(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: AC.primary),
+    ),
+  ),
+  const SizedBox(width: 14),
+  Expanded(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(m['name'] ?? '',
+            style: GoogleFonts.hindSiliguri(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AC.ink)),
+        const SizedBox(height: 2),
+        Text(
+            '${m['phone'] ?? ''} • ${m['package'] ?? ''}',
+            style: GoogleFonts.hindSiliguri(
+                fontSize: 12, color: AC.grey)),
+        const SizedBox(height: 2),
+        Text(m['address'] ?? '',
+            style: GoogleFonts.hindSiliguri(
+                fontSize: 11, color: AC.grey)),
+      ],
+    ),
+  ),
+  Column(
+    crossAxisAlignment: CrossAxisAlignment.end,
+    children: [
+      Container(
+        padding: const EdgeInsets.symmetric(
+            horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(status.toUpperCase(),
+            style: GoogleFonts.poppins(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: color)),
+      ),
+      const SizedBox(height: 6),
+      Text('৳${m['dueAmount'] ?? 0}',
+          style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: ((m['dueAmount'] ?? 0) as num) > 0
+                  ? AC.error
+                  : AC.success)),
+    ],
+  ),
+  const SizedBox(width: 8),
+  const Icon(Icons.chevron_right_rounded,
+      color: AC.grey),
+],
         ),
       ),
+    );
+  }
+}
+
+class _AddCustomerDialog extends StatefulWidget {
+  const _AddCustomerDialog();
+  @override
+  State<_AddCustomerDialog> createState() => _AddCustomerDialogState();
+}
+
+class _AddCustomerDialogState extends State<_AddCustomerDialog> {
+  final _name = TextEditingController();
+  final _phone = TextEditingController();
+  final _email = TextEditingController();
+  final _pass = TextEditingController(text: 'jajnet1234');
+  final _address = TextEditingController();
+  String _package = '20 Mbps';
+  final _price = TextEditingController(text: '525');
+  final _due = TextEditingController(text: '525');
+  String _status = 'active';
+  bool _loading = false;
+
+  static const Map<String, int> _pkgPrices = {
+    '20 Mbps': 525,
+    '30 Mbps': 650,
+    '40 Mbps': 750,
+    '50 Mbps': 850,
+    '70 Mbps': 1200,
+    '100 Mbps': 1500,
+  };
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _phone.dispose();
+    _email.dispose();
+    _pass.dispose();
+    _address.dispose();
+    _price.dispose();
+    _due.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_name.text.trim().isEmpty) {
+      _err('গ্রাহকের নাম দিন');
+      return;
+    }
+    if (_email.text.trim().isEmpty) {
+      _err('ইমেইল দিন');
+      return;
+    }
+    if (_pass.text.length < 6) {
+      _err('পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে');
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      await AdminService.createCustomer(
+        name: _name.text.trim(),
+        phone: _phone.text.trim(),
+        email: _email.text.trim(),
+        password: _pass.text,
+        address: _address.text.trim(),
+        package: _package,
+        packagePrice: int.tryParse(_price.text) ?? 0,
+        dueAmount: int.tryParse(_due.text) ?? 0,
+        status: _status,
+      );
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+content: Text(
+    'গ্রাহক যোগ হয়েছে ✅  পাসওয়ার্ড: ${_pass.text} — গ্রাহককে জানান'),
+backgroundColor: AC.success,
+duration: const Duration(seconds: 6),
+behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _err('সমস্যা: ${e.toString()}');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _err(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+content: Text(msg),
+behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(
+borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+Container(
+  padding: const EdgeInsets.all(8),
+  decoration: BoxDecoration(
+    gradient: AC.heroGradient,
+    borderRadius: BorderRadius.circular(10),
+  ),
+  child: const Icon(Icons.person_add_alt_1_rounded,
+      color: Colors.white, size: 20),
+),
+const SizedBox(width: 12),
+Text('নতুন গ্রাহক',
+    style: GoogleFonts.hindSiliguri(
+        fontSize: 18, fontWeight: FontWeight.w700)),
+        ],
+      ),
+      content: SizedBox(
+        width: 540,
+        child: SingleChildScrollView(
+child: Column(
+  mainAxisSize: MainAxisSize.min,
+  children: [
+    TextField(
+      controller: _name,
+      style: GoogleFonts.hindSiliguri(fontSize: 14),
+      decoration: const InputDecoration(
+        labelText: 'নাম *',
+        prefixIcon: Icon(Icons.person_outline_rounded,
+            color: AC.primary, size: 20),
+      ),
+    ),
+    const SizedBox(height: 12),
+    TextField(
+      controller: _phone,
+      keyboardType: TextInputType.phone,
+      style: GoogleFonts.hindSiliguri(fontSize: 14),
+      decoration: const InputDecoration(
+        labelText: 'মোবাইল নম্বর',
+        prefixIcon: Icon(Icons.phone_outlined,
+            color: AC.primary, size: 20),
+      ),
+    ),
+    const SizedBox(height: 12),
+    TextField(
+      controller: _email,
+      keyboardType: TextInputType.emailAddress,
+      style: GoogleFonts.hindSiliguri(fontSize: 14),
+      decoration: const InputDecoration(
+        labelText: 'ইমেইল *',
+        prefixIcon: Icon(Icons.alternate_email_rounded,
+            color: AC.primary, size: 20),
+      ),
+    ),
+    const SizedBox(height: 12),
+    TextField(
+      controller: _pass,
+      style: GoogleFonts.hindSiliguri(fontSize: 14),
+      decoration: const InputDecoration(
+        labelText: 'পাসওয়ার্ড * (গ্রাহককে জানাতে হবে)',
+        prefixIcon: Icon(Icons.lock_outline_rounded,
+            color: AC.primary, size: 20),
+      ),
+    ),
+    const SizedBox(height: 12),
+    TextField(
+      controller: _address,
+      style: GoogleFonts.hindSiliguri(fontSize: 14),
+      decoration: const InputDecoration(
+        labelText: 'ঠিকানা / এলাকা',
+        prefixIcon: Icon(Icons.location_on_outlined,
+            color: AC.primary, size: 20),
+      ),
+    ),
+    const SizedBox(height: 12),
+    DropdownButtonFormField<String>(
+      value: _package,
+      decoration: const InputDecoration(
+        labelText: 'প্যাকেজ',
+        prefixIcon: Icon(Icons.wifi_outlined,
+            color: AC.primary, size: 20),
+      ),
+      items: _pkgPrices.entries
+          .map((e) => DropdownMenuItem(
+                value: e.key,
+                child: Text('${e.key} — ৳${e.value}'),
+              ))
+          .toList(),
+      onChanged: (v) {
+        if (v == null) return;
+        setState(() {
+          _package = v;
+          final p = _pkgPrices[v] ?? 525;
+          _price.text = p.toString();
+          _due.text = p.toString();
+        });
+      },
+    ),
+    const SizedBox(height: 12),
+    Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _price,
+            keyboardType: TextInputType.number,
+            style: GoogleFonts.hindSiliguri(fontSize: 14),
+            decoration: const InputDecoration(
+              labelText: 'মাসিক বিল (৳)',
+              prefixIcon: Icon(Icons.attach_money_rounded,
+                  color: AC.primary, size: 20),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: TextField(
+            controller: _due,
+            keyboardType: TextInputType.number,
+            style: GoogleFonts.hindSiliguri(fontSize: 14),
+            decoration: const InputDecoration(
+              labelText: 'বর্তমান বকেয়া (৳)',
+              prefixIcon: Icon(Icons.money_off_rounded,
+                  color: AC.primary, size: 20),
+            ),
+          ),
+        ),
+      ],
+    ),
+    const SizedBox(height: 12),
+    DropdownButtonFormField<String>(
+      value: _status,
+      decoration: const InputDecoration(
+        labelText: 'স্ট্যাটাস',
+        prefixIcon: Icon(Icons.badge_outlined,
+            color: AC.primary, size: 20),
+      ),
+      items: const [
+        DropdownMenuItem(
+            value: 'active', child: Text('Active')),
+        DropdownMenuItem(value: 'due', child: Text('Due')),
+        DropdownMenuItem(
+            value: 'expired', child: Text('Expired')),
+      ],
+      onChanged: (v) =>
+          setState(() => _status = v ?? 'active'),
+    ),
+  ],
+),
+        ),
+      ),
+      actions: [
+        TextButton(
+onPressed: _loading ? null : () => Navigator.pop(context),
+child: Text('বাতিল',
+    style: GoogleFonts.hindSiliguri(color: AC.grey)),
+        ),
+        ElevatedButton(
+onPressed: _loading ? null : _save,
+child: _loading
+    ? const SizedBox(
+        width: 18,
+        height: 18,
+        child: CircularProgressIndicator(
+            color: Colors.white, strokeWidth: 2))
+    : Text('যোগ করুন',
+        style: GoogleFonts.hindSiliguri(
+            fontWeight: FontWeight.w600)),
+        ),
+      ],
     );
   }
 }
