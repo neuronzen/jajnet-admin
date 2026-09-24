@@ -59,69 +59,43 @@ builder: (context, paySnap) {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _welcomeCard(),
-        const SizedBox(height: 20),
+        const SizedBox(height: 22),
         Text('ব্যবসার সারসংক্ষেপ',
             style: GoogleFonts.hindSiliguri(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: AC.ink)),
         const SizedBox(height: 12),
-        LayoutBuilder(builder: (context, c) {
-          final cols = c.maxWidth > 1000
-              ? 3
-              : c.maxWidth > 640
-                  ? 2
-                  : 1;
-          return GridView.count(
-            crossAxisCount: cols,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio:
-                cols == 1 ? 3.2 : (cols == 2 ? 2.4 : 2.8),
-            shrinkWrap: true,
-            physics:
-                const NeverScrollableScrollPhysics(),
-            children: [
-              _statCard(
-                  'মোট গ্রাহক',
-                  '${users.length}',
-                  Icons.people_alt_rounded,
-                  AC.info),
-              _statCard(
-                  'Active',
-                  '$active',
-                  Icons.check_circle_rounded,
-                  AC.success),
-              _statCard(
-                  'Due',
-                  '$due',
-                  Icons.warning_amber_rounded,
-                  AC.warning),
-              _statCard(
-                  'Expired',
-                  '$expired',
-                  Icons.cancel_rounded,
-                  AC.error),
-              _statCard(
-                  'পেন্ডিং পেমেন্ট',
-                  '$pending',
-                  Icons.pending_actions_rounded,
-                  AC.warning),
-              _statCard(
-                  'মোট বকেয়া',
-                  '৳${dueAmount.toStringAsFixed(0)}',
-                  Icons.account_balance_wallet_rounded,
-                  AC.error),
-            ],
-          );
-        }),
-        const SizedBox(height: 20),
+        _statGrid([
+          _stat('মোট গ্রাহক', '${users.length}',
+              Icons.people_alt_rounded, AC.info),
+          _stat('Active', '$active',
+              Icons.check_circle_rounded, AC.success),
+          _stat('Due', '$due',
+              Icons.warning_amber_rounded, AC.warning),
+          _stat('Expired', '$expired',
+              Icons.cancel_rounded, AC.error),
+          _stat('পেন্ডিং পেমেন্ট', '$pending',
+              Icons.pending_actions_rounded, AC.warning),
+          _stat('মোট বকেয়া',
+              '৳${dueAmount.toStringAsFixed(0)}',
+              Icons.account_balance_wallet_rounded,
+              AC.error),
+        ]),
+        const SizedBox(height: 22),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: AC.heroGradient,
             borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: AC.primary.withOpacity(0.25),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
           child: Row(
             children: [
@@ -268,6 +242,7 @@ builder: (context, paySnap) {
                   }).toList(),
                 ),
         ),
+        const SizedBox(height: 30),
       ],
     ),
   );
@@ -333,10 +308,39 @@ Container(
     );
   }
 
-  Widget _statCard(
+  Widget _statGrid(List<_StatData> items) {
+    return LayoutBuilder(builder: (context, c) {
+      final cols = c.maxWidth > 900
+? 3
+: c.maxWidth > 560
+    ? 2
+    : 1;
+      final spacing = 12.0;
+      final totalSpacing = spacing * (cols - 1);
+      final itemWidth = (c.maxWidth - totalSpacing) / cols;
+      return Wrap(
+        spacing: spacing,
+        runSpacing: spacing,
+        children: items.map((s) {
+return SizedBox(
+  width: itemWidth,
+  height: 88,
+  child: _statCard(s),
+);
+        }).toList(),
+      );
+    });
+  }
+
+  _StatData _stat(
       String label, String value, IconData icon, Color color) {
+    return _StatData(label: label, value: value, icon: icon, color: color);
+  }
+
+  Widget _statCard(_StatData s) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(
+horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: AC.white,
         borderRadius: BorderRadius.circular(16),
@@ -348,10 +352,10 @@ Container(
   width: 46,
   height: 46,
   decoration: BoxDecoration(
-    color: color.withOpacity(0.12),
+    color: s.color.withOpacity(0.12),
     borderRadius: BorderRadius.circular(12),
   ),
-  child: Icon(icon, color: color, size: 24),
+  child: Icon(s.icon, color: s.color, size: 24),
 ),
 const SizedBox(width: 14),
 Expanded(
@@ -359,13 +363,13 @@ Expanded(
     crossAxisAlignment: CrossAxisAlignment.start,
     mainAxisAlignment: MainAxisAlignment.center,
     children: [
-      Text(label,
+      Text(s.label,
           style: GoogleFonts.hindSiliguri(
               fontSize: 12, color: AC.grey),
           maxLines: 1,
           overflow: TextOverflow.ellipsis),
       const SizedBox(height: 2),
-      Text(value,
+      Text(s.value,
           style: GoogleFonts.poppins(
               fontSize: 20,
               fontWeight: FontWeight.w700,
@@ -377,4 +381,17 @@ Expanded(
       ),
     );
   }
+}
+
+class _StatData {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+  const _StatData({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
 }
