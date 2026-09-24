@@ -491,4 +491,135 @@ function deleteNotice(id){
   db.collection('notices').doc(id).delete().then(function(){toast('Notice deleted','success');renderNotices()}).catch(function(e){console.error(e);toast('Something went wrong','error')});
 }
 
+// ============ PACKAGES ============
+var pkgCache = [];
+
+function renderPackages(){
+  var body = $('#pageBody');
+  body.innerHTML = '<div class="empty">Loading packages...</div>';
+  db.collection('packages').get()
+    .then(function(snap){
+      pkgCache = snap.docs.map(function(d){
+        var o = {id: d.id};
+        var x = d.data();
+        for (var k in x) o[k] = x[k];
+        return o;
+      });
+      pkgCache.sort(function(a,b){return (a.order||0) - (b.order||0);});
+      paintPackages();
+    })
+    .catch(function(e){
+      console.error('packages load failed:', e);
+      body.innerHTML = '<div class="empty">Failed to load packages</div>';
+    });
+}
+
+function paintPackages(){
+  var body = $('#pageBody');
+  body.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px">' +
+      '<div>' +
+        '<div style="font-size:16px;font-weight:700">Manage Packages</div>' +
+        '<div style="font-size:12.5px;color:var(--grey);margin-top:2px">Changes here appear instantly in the customer app</div>' +
+      '</div>' +
+      '<button id="addPkgBtn" class="btn btn-primary" type="button">+ New Package</button>' +
+    '</div>' +
+    '<div id="pkgList"></div>';
+
+  var list = $('#pkgList');
+  if (pkgCache.length === 0){
+    list.innerHTML = '<div class="empty">No packages yet. Tap "New Package" to add.</div>';
+  } else {
+    list.innerHTML = pkgCache.map(function(p){
+      var active = p.isActive !== false;
+      return '<div class="card" style="display:flex;align-items:center;gap:14px;padding:16px;margin-bottom:10px;flex-wrap:wrap">' +
+        '<div class="stat-icon stat-info" style="width:48px;height:48px;font-size:22px;flex-shrink:0">&#128225;</div>' +
+        '<div style="flex:1;min-width:120px">' +
+          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
+            '<div style="font-size:16px;font-weight:700">' + esc(p.name || '') + '</div>' +
+            (active ? '' : '<span class="pill pill-info">INACTIVE</span>') +
+          '</div>' +
+          '<div style="font-family:Poppins;font-size:14px;font-weight:700;color:var(--primary);margin-top:2px">৳' + (p.price || 0) + ' per month</div>' +
+        '</div>' +
+        '<button class="btn btn-outline pkg-edit" data-id="' + p.id + '" type="button" style="padding:8px 14px;font-size:13px">Edit</button>' +
+        '<button class="btn btn-danger pkg-del" data-id="' + p.id + '" data-name="' + esc(p.name || '') + '" type="button" style="padding:8px 14px;font-size:13px">Delete</button>' +
+      '</div>';
+    }).join('');
+  }
+
+  $('#addPkgBtn').onclick = function(){ openAddPackage(null); };
+  $$('.pkg-edit').forEach(function(b){
+    b.onclick = function(){
+      var id = b.dataset.id;
+      var p = pkgCache.filter(function(x){return x.id === id})[0];
+      if (p) openAddPackage(p);
+    };
+  });
+  $$('.pkg-del').forEach(function(b){
+    b.onclick = function(){
+      var id = b.dataset.id;
+      var name = b.dataset.name;
+      if (!confirm('Delete package "' + name + '"?')) return;
+      db.collection('packages').doc(id).delete()
+        .then(function(){
+          toast('Package deleted', 'success');
+          renderPackages();
+        })
+        .catch(function(e){
+          console.error(e);
+          toast('Delete failed', 'error');
+        });
+    };
+  });
+}
+
+function openAddPackage(existing){
+  var isEdit = existing !== null && existing !== undefined;
+  var name = isEdit ? (existing.name || '') : '';
+  var price = isEdit ? (existing.price || 525) : 525;
+  var order = isEdit ? (existing.order || 1) : (pkgCache.length + 1);
+  var active = isEdit ? (existing.isActive !== false) : true;
+
+  openModal(
+    '<div class="modal-title">' + (isEdit ? 'Edit Package' : 'New Package') + '</div>' +
+    '<div class="form-row"><label>Speed (e.g. 20 Mbps)</label><input id="pkgName" value="' + esc(name) + '" placeholder="20 Mbps"></div>' +
+    '<div class="form-row"><label>Monthly Price (৳)</label><input id="pkgPrice" type="number" value="' + price + '"></div>' +
+    '<div class="form-row"><label>Display Order</label><input id="pkgOrder" type="number" value="' + order + '"></div>' +
+    '<div class="form-row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
+      '<input type="checkbox" id="pkgActive" ' + (active ? 'checked' : '') + ' style="width:auto"> Active (visible to customers)' +
+    '</label></div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-outline" id="pkgCancel" type="button">Cancel</button>' +
+      '<button class="btn btn-primary" id="pkgSave" type="button">' + (isEdit ? 'Save' : 'Add') + '</button>' +
+    '</div>'
+  );
+
+  $('#pkgCancel').onclick = closeModal;
+  $('#pkgSave').onclick = function(){
+    var n = $('#pkgName').value.trim();
+    if (!n) return toast('Enter speed name', 'error');
+    var data = {
+      name: n,
+      price: Number($('#pkgPrice').value) || 0,
+      order: Number($('#pkgOrder').value) || 1,
+      isActive: $('#pkgActive').checked
+    };
+    var btn = $('#pkgSave');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    var promise = isEdit
+      ? db.collection('packages').doc(existing.id).update(data)
+      : db.collection('packages').add(Object.assign({}, data, {createdAt: firebase.firestore.FieldValue.serverTimestamp()}));
+
+    promise.then(function(){
+      closeModal();
+      toast(isEdit ? 'Package updated' : 'Package added', 'success');
+      renderPackages();
+    }).catch(function(e){
+      console.error(e);
+      toast('Save failed: ' + e.message, 'error');
+      btn.disabled = false;
+      btn.textContent = isEdit ? 'Save' : 'Add';
+    });
+  };
+          }
 console.log('[JAJ Net Admin] v4.0 loaded');
