@@ -170,8 +170,8 @@ function stopApp(){
 function renderDashboard(){
   var body=$('#pageBody');
   body.innerHTML='<div class="empty">Loading...</div>';
-  Promise.all([db.collection('users').get(),db.collection('payments').get()]).then(function(res){
-    var users=res[0].docs,pays=res[1].docs;
+  Promise.all([db.collection('users').get(),db.collection('payments').get(),db.collection('billingRecords').where('period','==',(new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0'))).get()]).then(function(res){
+    var users=res[0].docs,pays=res[1].docs,billingRecords=res[2].docs;
     var active=0,due=0,expired=0,dueAmt=0;
     users.forEach(function(d){
       var m=d.data(),s=m.status||'';
@@ -200,7 +200,7 @@ function renderDashboard(){
         '</div>'+
         '<div class="hero-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg></div>'+
       '</div>'+
-      '<h4 class="section-title">Business Overview</h4>'+
+      ((function(){var chargedCount = {};billingRecords.forEach(function(r){ if(r.data().userId) chargedCount[r.data().userId]=true; });var activeUsers = users.filter(function(u){ return (u.data().status||'').toLowerCase()==='active'; });var notCharged = activeUsers.filter(function(u){ return !chargedCount[u.id]; });if (notCharged.length === 0) return '';var monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];var d = new Date();var label = monthNames[d.getMonth()] + ' ' + d.getFullYear();return '<div style="background:linear-gradient(135deg,#FF9F5A 0%,#FF6B00 100%);border-radius:16px;padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:14px;box-shadow:0 8px 20px rgba(255,107,0,0.25)">'+'<div style="width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,0.22);display:grid;place-items:center;flex-shrink:0">&#9888;</div>'+'<div style="flex:1;min-width:0;color:#fff">'+'<div style="font-weight:700;font-size:15px">Monthly Charge Pending</div>'+'<div style="font-size:12.5px;opacity:0.92;margin-top:2px">'+label+' — '+notCharged.length+' customers not charged yet</div>'+'</div>'+'<button class="btn" data-goto="billing" style="background:#fff;color:#FF6B00;padding:10px 16px;font-size:13px;font-weight:700;flex-shrink:0">Apply Now</button>'+'</div>';})()) + '<h4 class="section-title">Business Overview</h4>'+
       '<div class="stats-grid">'+
         statCard('Total Customers',users.length,'info','&#128101;')+
         statCard('Active',active,'success','&#10003;')+
