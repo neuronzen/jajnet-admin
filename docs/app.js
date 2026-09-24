@@ -118,6 +118,7 @@ var PAGES={
   customers:{title:'Customers',render:renderCustomers},
   payments:{title:'Payments',render:renderPayments},
   notices:   {title: 'Notices', render: renderNotices},
+            billing:   {title: 'Billing', render: renderBilling},
             packages:  {title: 'Packages', render: renderPackages}
 };
 var currentPage='dashboard';
@@ -970,3 +971,112 @@ function rejectPaymentNew(id){
 // Override old handlers
 verifyPayment = verifyPaymentNew;
 rejectPayment = rejectPaymentNew;
+
+
+// ============ BILLING v9 ============
+function renderBilling(){
+  var body = document.querySelector('#pageBody');
+  body.innerHTML = '<div class="empty">Loading...</div>';
+  var now = new Date();
+  var period = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  var monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var periodLabel = monthNames[now.getMonth()] + ' ' + now.getFullYear();
+
+  Promise.all([
+    db.collection('users').get(),
+    db.collection('billingRecords').where('period','==',period).get()
+  ]).then(function(results){
+    var users = results[0].docs;
+    var records = results[1].docs;
+    var chargedIds = {};
+    records.forEach(function(r){ if(r.data().userId) chargedIds[r.data().userId]=true; });
+    var activeUsers = users.filter(function(u){ return (u.data().status||'').toLowerCase()==='active'; });
+    var notCharged = activeUsers.filter(function(u){ return !chargedIds[u.id]; });
+
+    body.innerHTML =
+      '<div class="hero-card" style="margin-bottom:20px">' +
+        '<div class="hero-text"><h3>' + periodLabel + '</h3><p>Monthly charge cycle</p></div>' +
+        '<div class="hero-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>' +
+      '</div>' +
+      '<div class="stats-grid" style="margin-bottom:20px">' +
+        '<div class="stat-card"><div class="stat-icon stat-info">&#128101;</div><div class="stat-body"><div class="stat-label">Active</div><div class="stat-value num">' + activeUsers.length + '</div></div></div>' +
+        '<div class="stat-card"><div class="stat-icon stat-success">&#10003;</div><div class="stat-body"><div class="stat-label">Charged</div><div class="stat-value num">' + (activeUsers.length - notCharged.length) + '</div></div></div>' +
+        '<div class="stat-card"><div class="stat-icon stat-warning">&#8987;</div><div class="stat-body"><div class="stat-label">Pending</div><div class="stat-value num">' + notCharged.length + '</div></div></div>' +
+      '</div>' +
+      (notCharged.length > 0
+        ? '<button id="applyChargeBtn" class="btn btn-primary" style="width:100%;justify-content:center;padding:18px;font-size:15px">Apply ' + periodLabel + ' charge to ' + notCharged.length + ' customers</button>'
+        : '<div class="card" style="text-align:center;padding:30px"><div class="stat-icon stat-success" style="width:60px;height:60px;font-size:28px;margin:0 auto 14px;border-radius:50%">&#10003;</div><div style="font-weight:700;font-size:16px">All charged for ' + periodLabel + '</div></div>'
+      );
+
+    if (notCharged.length > 0){
+      document.querySelector('#applyChargeBtn').onclick = function(){
+        applyMonthlyCharge(period, periodLabel, notCharged);
+      };
+    }
+  }).catch(function(e){
+    body.innerHTML = '<div class="empty">Failed: ' + e.message + '</div>';
+  });
+}
+
+function applyMonthlyCharge(period, periodLabel, customers){
+  var totalAmount = 0;
+  customers.forEach(function(u){
+    totalAmount += Number(u.data().packagePrice || 0);
+  });
+  openModal(
+    '<div class="modal-title">Confirm Monthly Charge</div>' +
+    '<div style="text-align:center;padding:14px 0 20px">' +
+      '<div class="stat-icon stat-warning" style="width:64px;height:64px;font-size:30px;margin:0 auto 14px;border-radius:50%">&#128181;</div>' +
+      '<div style="font-weight:700;font-size:16px">' + periodLabel + '</div>' +
+      '<div style="color:var(--grey);font-size:13px;margin-top:6px">' + customers.length + ' customers</div>' +
+    '</div>' +
+    '<div style="background:var(--cream);padding:14px;border-radius:12px;margin-bottom:18px">' +
+      '<div style="display:flex;justify-content:space-between"><span style="color:var(--grey);font-size:13px">Total Expected</span><span style="font-family:Poppins;font-weight:700;color:var(--primary)">&#2547;' + totalAmount.toLocaleString() + '</span></div>' +
+    '</div>' +
+    '<div style="color:var(--grey);font-size:12px;margin-bottom:14px;line-height:1.6">Each customer\'s due will increase by their package price. This cannot be undone.</div>' +
+    '<div class="modal-actions"><button class="btn btn-outline" id="mcCancel" type="button">Cancel</button><button class="btn btn-primary" id="mcConfirm" type="button">Charge Now</button></div>'
+  );
+  document.querySelector('#mcCancel').onclick = closeModal;
+  var btn = document.querySelector('#mcConfirm');
+  btn.onclick = async function(){
+    btn.disabled = true;
+    btn.textContent = 'Processing...';
+    var success = 0, failed = 0;
+    var adminEmail = auth.currentUser ? auth.currentUser.email : 'unknown';
+    for (var i = 0; i < customers.length; i++){
+      var u = customers[i];
+      var d = u.data();
+      var price = Number(d.packagePrice || 0);
+      if (price <= 0) { failed++; continue; }
+      try {
+        var userRef = db.collection('users').doc(u.id);
+        var recRef = db.collection('billingRecords').doc(u.id + '_' + period);
+        await db.runTransaction(async function(tx){
+          var recSnap = await tx.get(recRef);
+          if (recSnap.exists) return;
+          var userSnap = await tx.get(userRef);
+          if (!userSnap.exists) throw new Error('missing');
+          var cd = Number(userSnap.data().dueAmount || 0);
+          var nd = cd + price;
+          tx.update(userRef, {dueAmount: nd});
+          tx.set(recRef, {
+            userId: u.id,
+            period: period,
+            charge: price,
+            addedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            addedBy: adminEmail
+          });
+        });
+        success++;
+      } catch(e){
+        failed++;
+      }
+      if ((i+1) % 10 === 0){
+        btn.textContent = 'Processing ' + (i+1) + ' / ' + customers.length + '...';
+      }
+    }
+    closeModal();
+    toast('Charged ' + success + ' customers' + (failed>0 ? ' (' + failed + ' failed)' : ''), 'success');
+    renderBilling();
+  };
+}
