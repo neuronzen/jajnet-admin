@@ -213,6 +213,45 @@ function renderDashboard(){
         '<div class="hero-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>'+
         '<div class="hero-text"><p>Today\'s Collection</p><h3 class="num">'+money(today)+'</h3></div>'+
       '</div>'+
+      (function(){
+        var dueList = users.filter(function(d){
+          var m = d.data();
+          var s = (m.status || '').toLowerCase();
+          return s === 'active' && Number(m.dueAmount || 0) > 0;
+        }).map(function(d){ return {id: d.id, m: d.data()}; });
+        dueList.sort(function(a,b){ return Number(b.m.dueAmount||0) - Number(a.m.dueAmount||0); });
+        if (dueList.length === 0) return '';
+        var totalDue = 0;
+        dueList.forEach(function(x){ totalDue += Number(x.m.dueAmount||0); });
+        var items = dueList.slice(0, 5).map(function(x){
+          var m = x.m;
+          var name = esc(m.name||'');
+          var cid = esc(m.customerId||'');
+          var amt = Number(m.dueAmount||0);
+          return '<div class="list-row" style="padding:10px 0">'+
+            '<div class="avatar" style="width:32px;height:32px;font-size:12px">'+init(m.name)+'</div>'+
+            '<div class="list-main">'+
+              '<div class="list-title" style="font-size:13px">'+name+(cid?' <span class="pill pill-info" style="font-size:9px;margin-left:4px">'+cid+'</span>':'')+'</div>'+
+              '<div class="list-sub">'+esc(m.phone||'')+'</div>'+
+            '</div>'+
+            '<span class="amount" style="color:var(--error);font-size:13px">৳'+amt+'</span>'+
+          '</div>';
+        }).join('');
+        return '<div style="background:#fff;border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:var(--card-shadow);border-left:4px solid var(--error)">'+
+          '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'+
+            '<div class="stat-icon stat-error" style="width:36px;height:36px;font-size:16px;border-radius:10px">&#9888;</div>'+
+            '<div style="flex:1;min-width:0">'+
+              '<div style="font-weight:700;font-size:14px">Due Collections</div>'+
+              '<div style="font-size:11.5px;color:var(--grey);margin-top:1px">'+dueList.length+' customers &bull; total ৳'+totalDue.toLocaleString()+'</div>'+
+            '</div>'+
+            '<button class="btn" data-goto="customers" style="background:var(--cream);color:var(--primary);padding:8px 14px;font-size:12px;font-weight:700">View All</button>'+
+          '</div>'+
+          '<div style="border-top:1px solid var(--grey-light);padding-top:6px">'+
+            items+
+            (dueList.length > 5 ? '<div style="text-align:center;padding:8px;color:var(--grey);font-size:11.5px">+ '+(dueList.length-5)+' more customers</div>' : '')+
+          '</div>'+
+        '</div>';
+      })() +
       '<h4 class="section-title">Recent Customers <span style="font-weight:400;color:var(--grey);font-size:12px">('+users.length+' total)</span></h4>'+
       '<div class="card" style="padding:6px 16px">'+
         (recent.length?recent.map(function(d){
@@ -1050,6 +1089,17 @@ function resetCharges(){
     toast('Failed to load records', 'error');
   });
 }
+
+
+
+// Handle data-goto buttons anywhere in the app
+document.addEventListener('click', function(e){
+  var el = e.target.closest && e.target.closest('[data-goto]');
+  if (el) {
+    var page = el.getAttribute('data-goto');
+    if (page && typeof goto === 'function') goto(page);
+  }
+});
 
 console.log('[JAJ Net Admin] v4.0 loaded');
 
