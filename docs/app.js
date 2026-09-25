@@ -416,7 +416,7 @@ function openCustomerDetail(id){
 }
 
 // PAYMENTS
-var payTab='pending',payCache=[];
+var payTab='pending',payCache=[],paySearch='';
 function renderPayments(){
   var body=$('#pageBody');
   body.innerHTML='<div class="empty">Loading...</div>';
@@ -429,15 +429,46 @@ function paintPayments(){
   var body=$('#pageBody');
   var list=payTab==='pending'?payCache.filter(function(p){return p.status==='pending'}):payCache;
   var pendingCount=payCache.filter(function(p){return p.status==='pending'}).length;
+  
+  // Filter by search
+  if (paySearch && paySearch.trim()) {
+    var q = paySearch.trim().toLowerCase();
+    list = list.filter(function(p){
+      var cust = custLookup[p.userId] || {};
+      var trx = (p.trxId||'').toLowerCase();
+      var name = (cust.name||'').toLowerCase();
+      var phone = (cust.phone||'').toLowerCase();
+      var amt = String(p.amount||'');
+      return trx.indexOf(q) !== -1 || name.indexOf(q) !== -1 || 
+             phone.indexOf(q) !== -1 || amt.indexOf(q) !== -1;
+    });
+  }
+  
   body.innerHTML=
     '<div class="chips">'+
       '<button class="chip '+(payTab==='pending'?'active':'')+'" data-t="pending" type="button">Pending ('+pendingCount+')</button>'+
       '<button class="chip '+(payTab==='all'?'active':'')+'" data-t="all" type="button">All Payments</button>'+
     '</div>'+
-    '<div id="payList">'+(list.length?list.map(paymentCard).join(''):'<div class="empty">No payments yet</div>')+'</div>';
+    '<div style="position:relative;margin-bottom:14px">'+
+      '<input id="paySearchInput" type="text" placeholder="Search by TrxID, name, phone, or amount" value="'+esc(paySearch)+'" style="width:100%;padding:12px 14px 12px 40px;border-radius:12px;background:var(--cream);border:1.5px solid transparent;font-family:Hind Siliguri;font-size:14px;color:var(--ink)">'+
+      '<span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--primary);font-size:16px">&#128269;</span>'+
+    '</div>'+
+    '<div id="payList">'+(list.length?list.map(paymentCard).join(''):'<div class="empty">'+(paySearch?'No payments match "&quot;'+esc(paySearch)+'&quot;"':'No payments yet')+'</div>')+'</div>';
+  
   $$('.chips .chip').forEach(function(c){c.onclick=function(){payTab=c.dataset.t;paintPayments()}});
   $$('#payList .pay-verify').forEach(function(b){b.onclick=function(){verifyPayment(b.dataset.id)}});
   $$('#payList .pay-reject').forEach(function(b){b.onclick=function(){rejectPayment(b.dataset.id)}});
+  
+  var si = $('#paySearchInput');
+  if (si) {
+    si.oninput = function(e){
+      paySearch = e.target.value;
+      var pos = si.selectionStart;
+      paintPayments();
+      var ns = $('#paySearchInput');
+      if (ns) { ns.focus(); ns.setSelectionRange(pos, pos); }
+    };
+  }
 }
 function paymentCard(p){
   var s=p.status||'pending';
