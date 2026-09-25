@@ -12,6 +12,8 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+const WORKER_URL = 'https://jajnet-notifications.neuronzen57.workers.dev/';
+
 const ADMIN_EMAILS = ["admin@jajnet.com","jibonahmmedniloy@gmail.com"];
 const PACKAGES = {"20 Mbps":525,"30 Mbps":650,"40 Mbps":750,"50 Mbps":850,"70 Mbps":1200,"100 Mbps":1500};
 
@@ -706,9 +708,12 @@ function renderNotices(){
   db.collection('notices').get().then(function(snap){
     var list=snap.docs.map(function(d){var o={id:d.id};var x=d.data();for(var k in x)o[k]=x[k];return o});
     body.innerHTML=
-      '<button id="addNoticeBtn" class="btn btn-primary btn-block" type="button" style="margin-bottom:16px">+ Send New Notice</button>'+
+      '<button id="addNoticeBtn" class="btn btn-primary btn-block" type="button" style="margin-bottom:10px">+ Send New Notice</button>' +
+      '<button id="sendNotifBtn" class="btn btn-outline btn-block" type="button" style="margin-bottom:16px;color:var(--primary);border-color:var(--primary)">🔔 Send Push Notification</button>'+
       '<div id="noticeList">'+(list.length?list.map(noticeCard).join(''):'<div class="empty">No notices yet</div>')+'</div>';
     $('#addNoticeBtn').onclick=openAddNotice;
+    var notifBtn=$('#sendNotifBtn');
+    if(notifBtn)notifBtn.onclick=openNotificationModal;
     $$('#noticeList .notice-del').forEach(function(b){b.onclick=function(){deleteNotice(b.dataset.id)}});
   }).catch(function(e){console.error(e);body.innerHTML='<div class="empty">Failed to load</div>'});
 }
@@ -1339,6 +1344,93 @@ function openReminderModal(){
       window.open(url, '_blank');
     };
   });
+}
+
+
+
+// ============ PUSH NOTIFICATIONS ============
+function openNotificationModal(){
+  openModal(
+    '<div class="modal-title">🔔 Send Push Notification</div>' +
+    '<div style="color:var(--grey);font-size:12.5px;line-height:1.6;margin-bottom:16px">' +
+      'Notification will appear on all customers\' phones (even when app is closed).' +
+    '</div>' +
+    '<div class="form-row"><label>Title *</label><input id="notifTitle" placeholder="e.g. বিল পরিশোধের সময়"></div>' +
+    '<div class="form-row"><label>Message *</label><textarea id="notifBody" rows="3" placeholder="e.g. আপনার বিল পরিশোধের সময় হয়েছে।"></textarea></div>' +
+    '<div class="form-row"><label>Target</label>' +
+      '<select id="notifTarget">' +
+        '<option value="all">📢 All customers (topic: jajnet_all)</option>' +
+        '<option value="none" disabled>--- Specific customer coming soon ---</option>' +
+      '</select>' +
+    '</div>' +
+    '<div id="notifStatus" style="display:none;padding:10px;border-radius:10px;font-size:12.5px;line-height:1.5;margin-top:10px"></div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-outline" id="notifCancel" type="button">Cancel</button>' +
+      '<button class="btn btn-primary" id="notifSend" type="button">Send Now</button>' +
+    '</div>'
+  );
+  
+  document.querySelector('#notifCancel').onclick = closeModal;
+  
+  var sendBtn = document.querySelector('#notifSend');
+  var statusDiv = document.querySelector('#notifStatus');
+  
+  sendBtn.onclick = async function(){
+    var title = document.querySelector('#notifTitle').value.trim();
+    var msgBody = document.querySelector('#notifBody').value.trim();
+    
+    if (!title) return showNotifStatus('Please enter a title', 'error');
+    if (!msgBody) return showNotifStatus('Please enter a message', 'error');
+    
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Sending...';
+    showNotifStatus('Sending notification...', 'info');
+    
+    try {
+      var res = await fetch(WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: title,
+          body: msgBody,
+          topic: 'jajnet_all',
+        }),
+      });
+      
+      var data = await res.json();
+      
+      if (data.ok) {
+        showNotifStatus('✓ Sent successfully to all customers!', 'success');
+        setTimeout(function(){
+          closeModal();
+          toast('Notification sent ✅', 'success');
+        }, 1500);
+      } else {
+        showNotifStatus('Error: ' + (data.error || 'Unknown error'), 'error');
+        console.error(data);
+      }
+    } catch (e) {
+      showNotifStatus('Network error: ' + e.message, 'error');
+      console.error(e);
+    } finally {
+      sendBtn.disabled = false;
+      sendBtn.textContent = 'Send Now';
+    }
+  };
+  
+  function showNotifStatus(msg, type){
+    var colors = {
+      info: { bg: '#EFF6FF', color: '#1E40AF', border: '#BFDBFE' },
+      success: { bg: '#ECFDF5', color: '#065F46', border: '#A7F3D0' },
+      error: { bg: '#FEF2F2', color: '#991B1B', border: '#FECACA' },
+    };
+    var c = colors[type] || colors.info;
+    statusDiv.style.display = 'block';
+    statusDiv.style.background = c.bg;
+    statusDiv.style.color = c.color;
+    statusDiv.style.border = '1px solid ' + c.border;
+    statusDiv.textContent = msg;
+  }
 }
 
 console.log('[JAJ Net Admin] v4.0 loaded');
