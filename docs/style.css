@@ -327,8 +327,32 @@ input,select,textarea{font-family:inherit;outline:none}
 }
 
 input,textarea,select,[contenteditable]{
-  -webkit-user-select:text !important;
-  -moz-user-select:text !important;
-  -ms-user-select:text !important;
-  user-select:text !important;
+
+/* Disable text selection & long-press menu app-wide */
+body, .main-app, .sidebar, .content, .card, .stat-card, .list-row,
+.hero-card, .pill, .btn, .nav-item, .topbar, .page-title,
+.avatar, .badge, .chip, .stat-label, .stat-value, .list-title,
+.list-sub, .customer-name, .customer-meta, .modal-title,
+.form-row label, .empty {
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Re-enable selection for actual input fields */
+input, textarea, select, [contenteditable="true"] {
+  -webkit-user-select: text !important;
+  -webkit-touch-callout: default !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+}
+
+/* Allow selection in copy text (like invoice share) */
+.selectable, .selectable * {
+  -webkit-user-select: text !important;
+  -webkit-touch-callout: default !important;
+  user-select: text !important;
 }
