@@ -858,44 +858,94 @@ async function assignCustomerId(userId){
     if (snap.data().customerId) {
       return toast('Already has ID: ' + snap.data().customerId, 'error');
     }
-    var newId = await generateCustomerId();
-    await userRef.update({customerId: newId});
-    toast('Assigned: ' + newId, 'success');
-    renderCustomers();
+    var custName = snap.data().name || 'Customer';
+    openModal(
+      '<div class="modal-title">Assign Customer ID</div>' +
+      '<div style="text-align:center;padding:14px 0 20px">' +
+        '<div class="stat-icon stat-info" style="width:64px;height:64px;font-size:30px;margin:0 auto 14px;border-radius:50%">&#127991;</div>' +
+        '<div style="font-weight:700;font-size:16px">' + esc(custName) + '</div>' +
+        '<div style="color:var(--grey);font-size:13px;margin-top:6px">will get a unique ID</div>' +
+      '</div>' +
+      '<div class="modal-actions">' +
+        '<button class="btn btn-outline" id="aOneCancel" type="button">Cancel</button>' +
+        '<button class="btn btn-primary" id="aOneConfirm" type="button">Assign</button>' +
+      '</div>'
+    );
+    document.querySelector('#aOneCancel').onclick = closeModal;
+    var btn = document.querySelector('#aOneConfirm');
+    btn.onclick = async function(){
+      btn.disabled = true;
+      btn.textContent = 'Assigning...';
+      try {
+        var newId = await generateCustomerId();
+        await userRef.update({customerId: newId});
+        closeModal();
+        toast('Assigned: ' + newId, 'success');
+        renderCustomers();
+      } catch(e) {
+        console.error(e);
+        toast('Failed: ' + e.message, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Assign';
+      }
+    };
   } catch(e) {
     console.error(e);
     toast('Failed: ' + e.message, 'error');
   }
 }
 
-async function assignAllMissing(){
-  if (!confirm('Assign Customer IDs to all customers who do not have one yet?')) return;
-  try {
-    var usersSnap = await db.collection('users').get();
-    var missing = usersSnap.docs.filter(function(d){
-      return !d.data().customerId;
-    });
+function assignAllMissing(){
+  var usersSnapCache = null;
+  db.collection('users').get().then(function(snap){
+    var missing = snap.docs.filter(function(d){ return !d.data().customerId; });
     if (missing.length === 0) return toast('All customers already have IDs', 'success');
     
-    var counterRef = db.collection('counters').doc('customerId');
-    var counterSnap = await counterRef.get();
-    var start = counterSnap.exists ? Number(counterSnap.data().value || 0) : 0;
-    
-    var count = 0;
-    for (var i = 0; i < missing.length; i++) {
-      var doc = missing[i];
-      start++;
-      var newId = 'JAJ-' + String(start).padStart(3, '0');
-      await db.collection('users').doc(doc.id).update({customerId: newId});
-      count++;
-    }
-    await counterRef.set({value: start}, {merge: true});
-    toast('Assigned ' + count + ' customer IDs', 'success');
-    renderCustomers();
-  } catch(e) {
+    openModal(
+      '<div class="modal-title">Assign Customer IDs</div>' +
+      '<div style="text-align:center;padding:14px 0 20px">' +
+        '<div class="stat-icon stat-info" style="width:64px;height:64px;font-size:30px;margin:0 auto 14px;border-radius:50%">&#127991;</div>' +
+        '<div style="font-weight:700;font-size:16px">' + missing.length + ' customers</div>' +
+        '<div style="color:var(--grey);font-size:13px;margin-top:6px">will get IDs (JAJ-001, JAJ-002...)</div>' +
+      '</div>' +
+      '<div style="color:var(--grey);font-size:12px;margin-bottom:14px;line-height:1.6;text-align:center">This assigns unique IDs to customers who do not have one yet.</div>' +
+      '<div class="modal-actions">' +
+        '<button class="btn btn-outline" id="aAllCancel" type="button">Cancel</button>' +
+        '<button class="btn btn-primary" id="aAllConfirm" type="button">Assign Now</button>' +
+      '</div>'
+    );
+    document.querySelector('#aAllCancel').onclick = closeModal;
+    var btn = document.querySelector('#aAllConfirm');
+    btn.onclick = async function(){
+      btn.disabled = true;
+      btn.textContent = 'Processing...';
+      try {
+        var counterRef = db.collection('counters').doc('customerId');
+        var counterSnap = await counterRef.get();
+        var start = counterSnap.exists ? Number(counterSnap.data().value || 0) : 0;
+        var count = 0;
+        for (var i = 0; i < missing.length; i++) {
+          var doc = missing[i];
+          start++;
+          var newId = 'JAJ-' + String(start).padStart(3, '0');
+          await db.collection('users').doc(doc.id).update({customerId: newId});
+          count++;
+        }
+        await counterRef.set({value: start}, {merge: true});
+        closeModal();
+        toast('Assigned ' + count + ' customer IDs', 'success');
+        renderCustomers();
+      } catch(e) {
+        console.error(e);
+        toast('Failed: ' + e.message, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Assign Now';
+      }
+    };
+  }).catch(function(e){
     console.error(e);
-    toast('Failed: ' + e.message, 'error');
-  }
+    toast('Failed to load customers', 'error');
+  });
 }
 
 console.log('[JAJ Net Admin] v4.0 loaded');
