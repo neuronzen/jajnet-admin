@@ -295,7 +295,8 @@ function paintCustomers(){
   body.innerHTML=
     '<div class="toolbar">'+
       '<div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="custSearchInput" placeholder="Search by name, phone, email..." value="'+esc(custSearch)+'"></div>'+
-      '<button id="assignAllBtn" class="btn btn-outline" type="button" style="margin-right:8px">Assign IDs</button>' +
+      '<button id="remindBtn" class="btn btn-outline" type="button" style="margin-right:8px;color:#F59E0B;border-color:#F59E0B">📢 Remind</button>' +
+                '<button id="assignAllBtn" class="btn btn-outline" type="button" style="margin-right:8px">Assign IDs</button>' +
                 '<button id="addCustBtn" class="btn btn-primary" type="button">+ New Customer</button>'+
     '</div>'+
     '<div class="chips">'+
@@ -310,6 +311,8 @@ function paintCustomers(){
   var si=$('#custSearchInput');
   si.oninput=function(e){custSearch=e.target.value;var p=si.selectionStart;paintCustomers();var ns=$('#custSearchInput');ns.focus();ns.setSelectionRange(p,p)};
   $('#addCustBtn').onclick=openAddCustomer;
+  var remindBtn = $('#remindBtn');
+  if(remindBtn)remindBtn.onclick=openReminderModal;
   var assignAllBtn=$('#assignAllBtn');
   if(assignAllBtn)assignAllBtn.onclick=assignAllMissing;
   $$('.assign-id-btn').forEach(function(b){
@@ -1261,6 +1264,79 @@ document.addEventListener('click', function(e){
   }
 });
 
+
+
+// ============ SEND REMINDER ============
+function openReminderModal(){
+  if (custCache.length === 0) return toast('No customers to remind', 'error');
+  
+  var dueList = custCache.filter(function(m){
+    return m.status !== 'deleted' && m.status !== 'suspended' && Number(m.dueAmount || 0) > 0;
+  });
+  
+  if (dueList.length === 0) {
+    return toast('No customers with pending dues', 'success');
+  }
+  
+  var totalDue = 0;
+  dueList.forEach(function(m){ totalDue += Number(m.dueAmount || 0); });
+  
+  var customerList = dueList.map(function(m){
+    return '<div class="list-row" style="padding:8px 0;border-bottom:1px solid #F0F0F0">' +
+      '<div class="avatar" style="width:30px;height:30px;font-size:11px">' + init(m.name) + '</div>' +
+      '<div class="list-main">' +
+        '<div class="list-title" style="font-size:12.5px">' + esc(m.name || '') + '</div>' +
+        '<div class="list-sub">' + esc(m.phone || '') + '</div>' +
+      '</div>' +
+      '<span class="amount" style="color:#EF4444;font-size:12px">৳' + (m.dueAmount || 0) + '</span>' +
+    '</div>';
+  }).join('');
+  
+  openModal(
+    '<div class="modal-title">Send Payment Reminders</div>' +
+    '<div style="text-align:center;padding:10px 0 16px">' +
+      '<div class="stat-icon stat-warning" style="width:64px;height:64px;font-size:30px;margin:0 auto 14px;border-radius:50%">&#128227;</div>' +
+      '<div style="font-weight:700;font-size:15px">' + dueList.length + ' customers owe ৳' + totalDue.toLocaleString() + '</div>' +
+      '<div style="color:var(--grey);font-size:12.5px;margin-top:6px">Send reminder via WhatsApp or SMS</div>' +
+    '</div>' +
+    '<div style="max-height:180px;overflow-y:auto;background:#FFF8F2;border-radius:12px;padding:4px 14px;margin-bottom:14px">' +
+      customerList +
+    '</div>' +
+    '<div style="color:var(--grey);font-size:11.5px;line-height:1.6;margin-bottom:14px;text-align:center">' +
+      'Tap "Open WhatsApp" — it will open WhatsApp with each customer one by one. Or tap individual numbers below.' +
+    '</div>' +
+    '<div class="modal-actions" style="flex-direction:column;gap:8px">' +
+      '<button class="btn btn-success" id="copyAllBtn" type="button" style="width:100%;justify-content:center">📋 Copy All Phone Numbers</button>' +
+      '<button class="btn btn-primary" id="whatsappFirstBtn" type="button" style="width:100%;justify-content:center">💬 Open WhatsApp (First Customer)</button>' +
+    '</div>' +
+    '<div class="modal-actions" style="margin-top:8px">' +
+      '<button class="btn btn-outline" id="remindClose" type="button" style="flex:1;justify-content:center">Close</button>' +
+    '</div>'
+  );
+  
+  document.querySelector('#remindClose').onclick = closeModal;
+  
+  document.querySelector('#copyAllBtn').onclick = function(){
+    var text = dueList.map(function(m){
+      return (m.customerId || '') + ' | ' + (m.name || '') + ' | ' + (m.phone || '') + ' | ৳' + (m.dueAmount || 0);
+    }).join('\n');
+    navigator.clipboard.writeText(text).then(function(){
+      toast('Copied ' + dueList.length + ' customers', 'success');
+    }).catch(function(){
+      toast('Copy failed', 'error');
+    });
+  };
+  
+  document.querySelector('#whatsappFirstBtn').onclick = function(){
+    var m = dueList[0];
+    var phone = (m.phone || '').replace(/[^0-9]/g, '');
+    if (phone.startsWith('0')) phone = '88' + phone;
+    var msg = 'প্রিয় ' + (m.name || 'গ্রাহক') + ', আপনার JAJ Net বিল ৳' + (m.dueAmount || 0) + ' বাকি আছে। অনুগ্রহ করে পরিশোধ করুন। ধন্যবাদ।';
+    var url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(msg);
+    window.open(url, '_blank');
+  };
+}
+
 console.log('[JAJ Net Admin] v4.0 loaded');
 
 // ============ PAYMENT v8a ============
@@ -1471,7 +1547,10 @@ function renderBilling(){
 function applyMonthlyCharge(period, periodLabel, customers){
   var totalAmount = 0;
   customers.forEach(function(u){
-    totalAmount += Number(u.data().packagePrice || 0);
+    var d = u.data();
+    var price = Number(d.packagePrice || 0);
+    var disc = Number(d.monthlyDiscount || 0);
+    totalAmount += Math.max(0, price - disc);
   });
   openModal(
     '<div class="modal-title">Confirm Monthly Charge</div>' +
@@ -1497,7 +1576,9 @@ function applyMonthlyCharge(period, periodLabel, customers){
       var u = customers[i];
       var d = u.data();
       var price = Number(d.packagePrice || 0);
-      if (price <= 0) { failed++; continue; }
+      var disc = Number(d.monthlyDiscount || 0);
+      var effective = Math.max(0, price - disc);
+      if (effective <= 0) { failed++; continue; }
       try {
         var userRef = db.collection('users').doc(u.id);
         var recRef = db.collection('billingRecords').doc(u.id + '_' + period);
