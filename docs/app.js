@@ -1269,53 +1269,54 @@ document.addEventListener('click', function(e){
 // ============ SEND REMINDER ============
 function openReminderModal(){
   if (custCache.length === 0) return toast('No customers to remind', 'error');
-  
+
   var dueList = custCache.filter(function(m){
     return m.status !== 'deleted' && m.status !== 'suspended' && Number(m.dueAmount || 0) > 0;
   });
-  
+
   if (dueList.length === 0) {
     return toast('No customers with pending dues', 'success');
   }
-  
+
   var totalDue = 0;
   dueList.forEach(function(m){ totalDue += Number(m.dueAmount || 0); });
-  
-  var customerList = dueList.map(function(m){
-    return '<div class="list-row" style="padding:8px 0;border-bottom:1px solid #F0F0F0">' +
-      '<div class="avatar" style="width:30px;height:30px;font-size:11px">' + init(m.name) + '</div>' +
-      '<div class="list-main">' +
-        '<div class="list-title" style="font-size:12.5px">' + esc(m.name || '') + '</div>' +
-        '<div class="list-sub">' + esc(m.phone || '') + '</div>' +
+
+  var customerRows = dueList.map(function(m, idx){
+    var phone = (m.phone || '').replace(/[^0-9]/g, '');
+    var waPhone = phone.startsWith('0') ? '88' + phone : phone;
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #F0F0F0">' +
+      '<div class="avatar" style="width:34px;height:34px;font-size:12px;flex-shrink:0">' + init(m.name) + '</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-weight:600;font-size:12.5px;color:#151A26;font-family:Hind Siliguri,sans-serif">' + esc(m.name || '') + '</div>' +
+        '<div style="font-size:11px;color:#8A92A0;font-family:Poppins,sans-serif">' + esc(m.phone || '') + '</div>' +
       '</div>' +
-      '<span class="amount" style="color:#EF4444;font-size:12px">৳' + (m.dueAmount || 0) + '</span>' +
+      '<div style="font-family:Poppins,sans-serif;font-weight:700;color:#EF4444;font-size:12px;margin-right:4px">৳' + (m.dueAmount || 0) + '</div>' +
+      '<button class="btn btn-success wa-btn" data-phone="' + waPhone + '" data-name="' + esc(m.name || '') + '" data-amt="' + (m.dueAmount || 0) + '" type="button" style="padding:6px 10px;font-size:11px;flex-shrink:0">' +
+        '💬 WhatsApp' +
+      '</button>' +
     '</div>';
   }).join('');
-  
+
   openModal(
     '<div class="modal-title">Send Payment Reminders</div>' +
-    '<div style="text-align:center;padding:10px 0 16px">' +
-      '<div class="stat-icon stat-warning" style="width:64px;height:64px;font-size:30px;margin:0 auto 14px;border-radius:50%">&#128227;</div>' +
-      '<div style="font-weight:700;font-size:15px">' + dueList.length + ' customers owe ৳' + totalDue.toLocaleString() + '</div>' +
-      '<div style="color:var(--grey);font-size:12.5px;margin-top:6px">Send reminder via WhatsApp or SMS</div>' +
+    '<div style="text-align:center;padding:8px 0 14px">' +
+      '<div class="stat-icon stat-warning" style="width:60px;height:60px;font-size:28px;margin:0 auto 12px;border-radius:50%">&#128227;</div>' +
+      '<div style="font-weight:700;font-size:14px">' + dueList.length + ' customers owe ৳' + totalDue.toLocaleString() + '</div>' +
+      '<div style="color:var(--grey);font-size:12px;margin-top:4px">Tap WhatsApp button next to each customer</div>' +
     '</div>' +
-    '<div style="max-height:180px;overflow-y:auto;background:#FFF8F2;border-radius:12px;padding:4px 14px;margin-bottom:14px">' +
-      customerList +
-    '</div>' +
-    '<div style="color:var(--grey);font-size:11.5px;line-height:1.6;margin-bottom:14px;text-align:center">' +
-      'Tap "Open WhatsApp" — it will open WhatsApp with each customer one by one. Or tap individual numbers below.' +
+    '<div style="max-height:320px;overflow-y:auto;background:#FFF8F2;border-radius:12px;padding:4px 14px;margin-bottom:14px">' +
+      customerRows +
     '</div>' +
     '<div class="modal-actions" style="flex-direction:column;gap:8px">' +
-      '<button class="btn btn-success" id="copyAllBtn" type="button" style="width:100%;justify-content:center">📋 Copy All Phone Numbers</button>' +
-      '<button class="btn btn-primary" id="whatsappFirstBtn" type="button" style="width:100%;justify-content:center">💬 Open WhatsApp (First Customer)</button>' +
+      '<button class="btn btn-outline" id="copyAllBtn" type="button" style="width:100%;justify-content:center">📋 Copy All Numbers</button>' +
     '</div>' +
     '<div class="modal-actions" style="margin-top:8px">' +
       '<button class="btn btn-outline" id="remindClose" type="button" style="flex:1;justify-content:center">Close</button>' +
     '</div>'
   );
-  
+
   document.querySelector('#remindClose').onclick = closeModal;
-  
+
   document.querySelector('#copyAllBtn').onclick = function(){
     var text = dueList.map(function(m){
       return (m.customerId || '') + ' | ' + (m.name || '') + ' | ' + (m.phone || '') + ' | ৳' + (m.dueAmount || 0);
@@ -1326,15 +1327,18 @@ function openReminderModal(){
       toast('Copy failed', 'error');
     });
   };
-  
-  document.querySelector('#whatsappFirstBtn').onclick = function(){
-    var m = dueList[0];
-    var phone = (m.phone || '').replace(/[^0-9]/g, '');
-    if (phone.startsWith('0')) phone = '88' + phone;
-    var msg = 'প্রিয় ' + (m.name || 'গ্রাহক') + ', আপনার JAJ Net বিল ৳' + (m.dueAmount || 0) + ' বাকি আছে। অনুগ্রহ করে পরিশোধ করুন। ধন্যবাদ।';
-    var url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(msg);
-    window.open(url, '_blank');
-  };
+
+  // Wire each WhatsApp button
+  document.querySelectorAll('.wa-btn').forEach(function(btn){
+    btn.onclick = function(){
+      var phone = btn.dataset.phone;
+      var name = btn.dataset.name;
+      var amt = btn.dataset.amt;
+      var msg = 'প্রিয় ' + name + ', আপনার JAJ Net বিল ৳' + amt + ' বাকি আছে। অনুগ্রহ করে পরিশোধ করুন। ধন্যবাদ।';
+      var url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(msg);
+      window.open(url, '_blank');
+    };
+  });
 }
 
 console.log('[JAJ Net Admin] v4.0 loaded');
