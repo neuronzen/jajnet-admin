@@ -365,6 +365,7 @@ function openAddCustomer(){
     '<div class="form-row"><label>Package</label><select id="acPkg">'+Object.keys(PACKAGES).map(function(k){return '<option value="'+k+'">'+k+' — ৳'+PACKAGES[k]+'</option>'}).join('')+'</select></div>'+
     '<div class="form-grid-2">'+
       '<div class="form-row"><label>Monthly Bill (৳)</label><input id="acPrice" type="number" value="525"></div>'+
+      '<div class="form-row"><label>Discount (৳)</label><input id="acDiscount" type="number" value="0" placeholder="0"></div>'+
       '<div class="form-row"><label>Current Due (৳)</label><input id="acDue" type="number" value="525"></div>'+
     '</div>'+
     '<div class="form-row"><label>Status</label><select id="acStatus"><option value="active">Active</option><option value="due">Due</option><option value="expired">Expired</option></select></div>'+
@@ -393,6 +394,7 @@ async function submitAddCustomer(){
       package:$('#acPkg').value,
       packagePrice:Number($('#acPrice').value)||0,
       dueAmount:Number($('#acDue').value)||0,
+      monthlyDiscount:Number($('#acDiscount').value)||0,
       status:$('#acStatus').value,
       customerId:newCustomerId,
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
@@ -425,6 +427,7 @@ function openCustomerDetail(id){
     '<div class="form-row"><label>Package</label><select id="dcPkg">'+Object.keys(PACKAGES).map(function(k){return '<option value="'+k+'" '+(k===m.package?'selected':'')+'>'+k+' — ৳'+PACKAGES[k]+'</option>'}).join('')+'</select></div>'+
     '<div class="form-grid-2">'+
       '<div class="form-row"><label>Monthly Bill (৳)</label><input id="dcPrice" type="number" value="'+(m.packagePrice||0)+'"></div>'+
+      '<div class="form-row"><label>Discount (৳)</label><input id="dcDiscount" type="number" value="'+(m.monthlyDiscount||0)+'" placeholder="0"></div>'+
       '<div class="form-row"><label>Due Amount (৳)</label><input id="dcDue" type="number" value="'+(m.dueAmount||0)+'"></div>'+
     '</div>'+
     '<div class="form-row"><label>Status</label><select id="dcStatus">'+['active','due','expired'].map(function(s){return '<option value="'+s+'" '+(s===m.status?'selected':'')+'>'+s.charAt(0).toUpperCase()+s.slice(1)+'</option>'}).join('')+'</select></div>'+
@@ -473,6 +476,7 @@ function openCustomerDetail(id){
       package:$('#dcPkg').value,
       packagePrice:Number($('#dcPrice').value)||0,
       dueAmount:Number($('#dcDue').value)||0,
+      monthlyDiscount:Number($('#dcDiscount').value)||0,
       status:$('#dcStatus').value
     }).then(function(){
       closeModal();
