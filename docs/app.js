@@ -331,7 +331,7 @@ function openAddCustomer(){
   $('#acCancel').onclick=closeModal;
   $('#acSave').onclick=submitAddCustomer;
 }
-function submitAddCustomer(){
+async function submitAddCustomer(){
   var name=$('#acName').value.trim();
   var email=$('#acEmail').value.trim();
   var pass=$('#acPass').value;
