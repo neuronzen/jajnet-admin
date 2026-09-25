@@ -424,50 +424,55 @@ function openCustomerDetail(id){
 
   var status = (m.status || 'active').toString();
   var isSuspended = status === 'suspended';
+  var statusColor = status==='active'?'#10B981':status==='due'?'#F59E0B':status==='suspended'?'#F59E0B':'#EF4444';
+  var statusBg = status==='active'?'rgba(16,185,129,0.12)':status==='due'?'rgba(245,158,11,0.14)':status==='suspended'?'rgba(245,158,11,0.14)':'rgba(239,68,68,0.12)';
+
+  var infoRow = function(label, value, color){
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #FFEBD8">'+
+      '<span style="font-family:Hind Siliguri,sans-serif;font-size:12px;color:#8A92A0">'+label+'</span>'+
+      '<span style="font-family:Hind Siliguri,sans-serif;font-size:13px;font-weight:700;color:'+(color||'#151A26')+';text-align:right">'+value+'</span>'+
+    '</div>';
+  };
+
+  var actionBtn = function(action, icon, label, color){
+    return '<div data-action="'+action+'" data-id="'+m.id+'" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:14px 8px;border-radius:14px;background:#FFF8F2;border:1.5px solid #FFEBD8;cursor:pointer;font-family:Hind Siliguri,sans-serif;font-size:12.5px;font-weight:600;color:#151A26;min-height:76px;-webkit-tap-highlight-color:transparent">'+
+      '<span style="font-size:22px;color:'+color+'">'+icon+'</span>'+
+      '<span>'+label+'</span>'+
+    '</div>';
+  };
 
   openModal(
     '<div class="modal-title" style="margin-bottom:6px">' + esc(m.name || '') + '</div>' +
     '<div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">' +
-      '<span class="pill ' + (status==='active'?'pill-success':status==='due'?'pill-warning':status==='suspended'?'pill-warning':'pill-error') + '">' + status.toUpperCase() + '</span>' +
-      (m.customerId ? '<span class="pill pill-info">' + esc(m.customerId) + '</span>' : '') +
+      '<span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;font-family:Poppins,sans-serif;letter-spacing:.3px;background:'+statusBg+';color:'+statusColor+'">' + status.toUpperCase() + '</span>' +
+      (m.customerId ? '<span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;font-family:Poppins,sans-serif;letter-spacing:.3px;background:rgba(46,125,255,0.12);color:#2E7DFF">' + esc(m.customerId) + '</span>' : '') +
     '</div>' +
 
-    '<div class="info-block">' +
-      '<div class="info-row"><span class="lbl">Mobile</span><span class="val">' + esc(m.phone || '-') + '</span></div>' +
-      '<div class="info-row"><span class="lbl">Email</span><span class="val">' + esc(m.email || '-') + '</span></div>' +
-      '<div class="info-row"><span class="lbl">Address</span><span class="val">' + esc(m.address || '-') + '</span></div>' +
+    '<div style="background:#FFF8F2;border-radius:12px;padding:4px 14px;margin-bottom:14px">' +
+      infoRow('Mobile', esc(m.phone || '-')) +
+      infoRow('Email', esc(m.email || '-')) +
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0">' +
+        '<span style="font-family:Hind Siliguri,sans-serif;font-size:12px;color:#8A92A0">Address</span>' +
+        '<span style="font-family:Hind Siliguri,sans-serif;font-size:13px;font-weight:700;color:#151A26;text-align:right">' + esc(m.address || '-') + '</span>' +
+      '</div>' +
     '</div>' +
 
-    '<div class="info-block">' +
-      '<div class="info-row"><span class="lbl">Package</span><span class="val">' + esc(m.package || '-') + '</span></div>' +
-      '<div class="info-row"><span class="lbl">Monthly Bill</span><span class="val accent">৳' + (m.packagePrice||0) + '</span></div>' +
-      (Number(m.monthlyDiscount||0) > 0 ? '<div class="info-row"><span class="lbl">Discount</span><span class="val" style="color:#059669">- ৳' + m.monthlyDiscount + '</span></div>' : '') +
-      '<div class="info-row"><span class="lbl">Current Due</span><span class="val" style="color:' + (Number(m.dueAmount||0) > 0 ? '#EF4444' : '#059669') + '">৳' + (m.dueAmount||0) + '</span></div>' +
+    '<div style="background:#FFF8F2;border-radius:12px;padding:4px 14px;margin-bottom:16px">' +
+      infoRow('Package', esc(m.package || '-')) +
+      infoRow('Monthly Bill', '৳'+(m.packagePrice||0), '#FF6B00') +
+      (Number(m.monthlyDiscount||0) > 0 ? infoRow('Discount', '- ৳' + m.monthlyDiscount, '#059669') : '') +
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0">' +
+        '<span style="font-family:Hind Siliguri,sans-serif;font-size:12px;color:#8A92A0">Current Due</span>' +
+        '<span style="font-family:Hind Siliguri,sans-serif;font-size:13px;font-weight:700;color:' + (Number(m.dueAmount||0) > 0 ? '#EF4444' : '#059669') + ';text-align:right">৳'+(m.dueAmount||0)+'</span>' +
+      '</div>' +
     '</div>' +
 
-    '<div style="font-size:13px;font-weight:700;margin:18px 0 10px;color:#151A26">Actions</div>' +
+    '<div style="font-size:13px;font-weight:700;margin:18px 0 10px;color:#151A26;font-family:Hind Siliguri,sans-serif">Actions</div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px">' +
-
-      '<div class="action-btn collect" data-action="collect" data-id="' + m.id + '">' +
-        '<span class="icon">&#128176;</span>' +
-        '<span>Collect Payment</span>' +
-      '</div>' +
-
-      '<div class="action-btn edit" data-action="edit" data-id="' + m.id + '">' +
-        '<span class="icon">&#9998;</span>' +
-        '<span>Edit Details</span>' +
-      '</div>' +
-
-      '<div class="action-btn suspend" data-action="suspend" data-id="' + m.id + '">' +
-        '<span class="icon">' + (isSuspended ? '&#9654;' : '&#10074;&#10074;') + '</span>' +
-        '<span>' + (isSuspended ? 'Activate' : 'Suspend') + '</span>' +
-      '</div>' +
-
-      '<div class="action-btn delete" data-action="delete" data-id="' + m.id + '">' +
-        '<span class="icon">&#128465;</span>' +
-        '<span>Delete</span>' +
-      '</div>' +
-
+      actionBtn('collect', '&#128176;', 'Collect Payment', '#059669') +
+      actionBtn('edit', '&#9998;', 'Edit Details', '#FF6B00') +
+      actionBtn('suspend', isSuspended ? '&#9654;' : '&#10074;&#10074;', isSuspended ? 'Activate' : 'Suspend', '#F59E0B') +
+      actionBtn('delete', '&#128465;', 'Delete', '#EF4444') +
     '</div>' +
 
     '<div class="modal-actions" style="margin-top:14px">' +
@@ -477,15 +482,14 @@ function openCustomerDetail(id){
 
   document.querySelector('#dcClose').onclick = closeModal;
 
-  // Action button handlers
-  document.querySelectorAll('.action-btn').forEach(function(btn){
+  document.querySelectorAll('[data-action]').forEach(function(btn){
     btn.onclick = function(){
       var action = btn.dataset.action;
       var cid = btn.dataset.id;
       if (action === 'collect') { closeModal(); collectPayment(cid, m.name||'', Number(m.dueAmount||0)); }
       else if (action === 'edit') { closeModal(); setTimeout(function(){ openCustomerEdit(cid); }, 200); }
-      else if (action === 'suspend') { doSuspend(cid, m.status); }
-      else if (action === 'delete') { doDelete(cid, m.name||''); }
+      else if (action === 'suspend') { closeModal(); setTimeout(function(){ doSuspend(cid, m.status); }, 200); }
+      else if (action === 'delete') { closeModal(); setTimeout(function(){ doDelete(cid, m.name||''); }, 200); }
     };
   });
 }
