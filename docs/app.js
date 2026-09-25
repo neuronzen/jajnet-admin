@@ -745,10 +745,54 @@ function openAddNotice(){
   };
 }
 function deleteNotice(id){
-  if(!confirm('Delete this notice?'))return;
-  db.collection('notices').doc(id).delete().then(function(){toast('Notice deleted','success');renderNotices()}).catch(function(e){console.error(e);toast('Something went wrong','error')});
+  var notice = null;
+  // Try to find the notice title from current list
+  db.collection('notices').doc(id).get().then(function(snap){
+    if (snap.exists) {
+      notice = snap.data();
+      showDeleteNoticeConfirm(id, notice.title || '');
+    } else {
+      toast('Notice not found', 'error');
+    }
+  }).catch(function(e){
+    console.error(e);
+    toast('Failed to load notice', 'error');
+  });
 }
 
+function showDeleteNoticeConfirm(id, title){
+  openModal(
+    '<div class="modal-title">Delete Notice</div>' +
+    '<div style="text-align:center;padding:14px 0 20px">' +
+      '<div class="stat-icon stat-error" style="width:64px;height:64px;font-size:30px;margin:0 auto 14px;border-radius:50%">&#128465;</div>' +
+      '<div style="font-weight:700;font-size:15px;color:var(--ink);line-height:1.5">' + esc(title || 'This notice') + '</div>' +
+      '<div style="color:var(--grey);font-size:12.5px;margin-top:8px;line-height:1.6">This will be removed from all customers.</div>' +
+    '</div>' +
+    '<div style="background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.2);padding:12px;border-radius:12px;margin-bottom:18px">' +
+      '<div style="color:var(--error);font-size:12.5px;line-height:1.6;font-weight:600">⚠ This action cannot be undone</div>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-outline" id="delNoticeCancel" type="button">Cancel</button>' +
+      '<button class="btn" id="delNoticeConfirm" type="button" style="background:#FF4757;color:#fff;flex:1">Delete</button>' +
+    '</div>'
+  );
+  document.querySelector('#delNoticeCancel').onclick = closeModal;
+  document.querySelector('#delNoticeConfirm').onclick = function(){
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = 'Deleting...';
+    db.collection('notices').doc(id).delete().then(function(){
+      closeModal();
+      toast('Notice deleted', 'success');
+      renderNotices();
+    }).catch(function(e){
+      console.error(e);
+      toast('Failed: ' + e.message, 'error');
+      btn.disabled = false;
+      btn.textContent = 'Delete';
+    });
+  };
+}
 // ============ PACKAGES ============
 var pkgCache = [];
 
