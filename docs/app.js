@@ -979,6 +979,78 @@ function assignAllMissing(){
   });
 }
 
+
+function resetCharges(){
+  var now = new Date();
+  var period = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  var monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var periodLabel = monthNames[now.getMonth()] + ' ' + now.getFullYear();
+  
+  db.collection('billingRecords').where('period','==',period).get().then(function(snap){
+    var count = snap.size;
+    if (count === 0) return toast('No charges to reset', 'error');
+    
+    openModal(
+      '<div class="modal-title">Reset Monthly Charges</div>' +
+      '<div style="text-align:center;padding:14px 0 20px">' +
+        '<div class="stat-icon stat-error" style="width:64px;height:64px;font-size:30px;margin:0 auto 14px;border-radius:50%">&#9888;</div>' +
+        '<div style="font-weight:700;font-size:16px">' + periodLabel + '</div>' +
+        '<div style="color:var(--grey);font-size:13px;margin-top:6px">' + count + ' customers</div>' +
+      '</div>' +
+      '<div style="background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.2);padding:14px;border-radius:12px;margin-bottom:18px">' +
+        '<div style="color:var(--error);font-size:13px;line-height:1.6;font-weight:600">Warning</div>' +
+        '<div style="color:var(--grey);font-size:12px;line-height:1.6;margin-top:4px">This will remove the monthly charge from each customer\'s due amount. After reset, you can apply charges again with the correct price.</div>' +
+      '</div>' +
+      '<div class="modal-actions">' +
+        '<button class="btn btn-outline" id="rcCancel" type="button">Cancel</button>' +
+        '<button class="btn btn-danger" id="rcConfirm" type="button">Reset Charges</button>' +
+      '</div>'
+    );
+    document.querySelector('#rcCancel').onclick = closeModal;
+    var btn = document.querySelector('#rcConfirm');
+    btn.onclick = async function(){
+      btn.disabled = true;
+      btn.textContent = 'Resetting...';
+      var success = 0;
+      var failed = 0;
+      try {
+        for (var i = 0; i < snap.docs.length; i++) {
+          var rec = snap.docs[i];
+          var rdata = rec.data();
+          var userId = rdata.userId;
+          var charge = Number(rdata.charge || 0);
+          try {
+            var userRef = db.collection('users').doc(userId);
+            await db.runTransaction(async function(tx){
+              var uSnap = await tx.get(userRef);
+              if (!uSnap.exists) throw new Error('missing');
+              var cd = Number(uSnap.data().dueAmount || 0);
+              var nd = cd - charge;
+              if (nd < 0) nd = 0;
+              tx.update(userRef, {dueAmount: nd});
+              tx.delete(rec.ref);
+            });
+            success++;
+          } catch(e) {
+            failed++;
+          }
+        }
+        closeModal();
+        toast('Reset ' + success + ' charges' + (failed>0 ? ' (' + failed + ' failed)' : ''), 'success');
+        renderBilling();
+      } catch(e) {
+        console.error(e);
+        toast('Error: ' + e.message, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Reset Charges';
+      }
+    };
+  }).catch(function(e){
+    console.error(e);
+    toast('Failed to load records', 'error');
+  });
+}
+
 console.log('[JAJ Net Admin] v4.0 loaded');
 
 // ============ PAYMENT v8a ============
@@ -1170,7 +1242,8 @@ function renderBilling(){
       '</div>' +
       (notCharged.length > 0
         ? '<button id="applyChargeBtn" class="btn btn-primary" style="width:100%;justify-content:center;padding:18px;font-size:15px">Apply ' + periodLabel + ' charge to ' + notCharged.length + ' customers</button>'
-        : '<div class="card" style="text-align:center;padding:30px"><div class="stat-icon stat-success" style="width:60px;height:60px;font-size:28px;margin:0 auto 14px;border-radius:50%">&#10003;</div><div style="font-weight:700;font-size:16px">All charged for ' + periodLabel + '</div></div>'
+        : '<div class="card" style="text-align:center;padding:30px"><div class="stat-icon stat-success" style="width:60px;height:60px;font-size:28px;margin:0 auto 14px;border-radius:50%">&#10003;</div><div style="font-weight:700;font-size:16px">All charged for ' + periodLabel + '</div></div>' +
+          '<button id="resetChargeBtn" class="btn btn-outline" type="button" style="width:100%;justify-content:center;padding:14px;margin-top:10px;color:var(--error);border-color:var(--error)">Reset Charges for ' + periodLabel + '</button>'
       );
 
     if (notCharged.length > 0){
@@ -1178,6 +1251,8 @@ function renderBilling(){
         applyMonthlyCharge(period, periodLabel, notCharged);
       };
     }
+    var resetBtn = document.querySelector('#resetChargeBtn');
+    if (resetBtn) resetBtn.onclick = resetCharges;
   }).catch(function(e){
     body.innerHTML = '<div class="empty">Failed: ' + e.message + '</div>';
   });
