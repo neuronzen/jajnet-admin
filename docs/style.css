@@ -356,3 +356,153 @@ input, textarea, select, [contenteditable="true"] {
   -webkit-touch-callout: default !important;
   user-select: text !important;
 }
+
+/* ============ BUTTON IMPROVEMENTS ============ */
+.btn {
+  cursor: pointer !important;
+  transition: transform 0.12s ease, box-shadow 0.15s ease, background 0.15s ease !important;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+.btn:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+.btn:disabled,
+.btn[disabled] {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #FF9F5A 0%, #FF6B00 100%) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px rgba(255,107,0,0.28) !important;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #FF8A3D 0%, #E55A00 100%) !important;
+  box-shadow: 0 8px 18px rgba(255,107,0,0.35) !important;
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #34D399 0%, #059669 100%) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px rgba(5,150,105,0.28) !important;
+}
+
+.btn-danger {
+  background: rgba(255,71,87,0.12) !important;
+  color: #FF4757 !important;
+}
+
+.btn-danger:hover {
+  background: rgba(255,71,87,0.2) !important;
+}
+
+.btn-outline {
+  background: #fff !important;
+  border: 1.5px solid #E8EAEE !important;
+  color: #151A26 !important;
+}
+
+.btn-outline:hover {
+  border-color: #FF6B00 !important;
+  color: #FF6B00 !important;
+}
+
+/* Action buttons in customer modal */
+.action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 8px;
+  border-radius: 14px;
+  background: #FFF8F2;
+  border: 1.5px solid #FFEBD8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: 'Hind Siliguri', sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #151A26;
+  min-height: 76px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.action-btn:hover {
+  background: #FFEBD8;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(255,107,0,0.15);
+}
+
+.action-btn:active {
+  transform: scale(0.97);
+}
+
+.action-btn .icon {
+  font-size: 22px;
+}
+
+.action-btn.collect .icon { color: #059669; }
+.action-btn.edit .icon { color: #FF6B00; }
+.action-btn.suspend .icon { color: #F59E0B; }
+.action-btn.delete .icon { color: #EF4444; }
+
+/* Read-only info display in customer modal */
+.info-block {
+  background: #FFF8F2;
+  border-radius: 12px;
+  padding: 4px 14px;
+  margin-bottom: 14px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 0;
+  border-bottom: 1px solid #FFEBD8;
+}
+
+.info-row:last-child { border-bottom: none; }
+
+.info-row .lbl {
+  font-family: 'Hind Siliguri', sans-serif;
+  font-size: 12px;
+  color: #8A92A0;
+}
+
+.info-row .val {
+  font-family: 'Hind Siliguri', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #151A26;
+  text-align: right;
+}
+
+.info-row .val.accent {
+  color: #FF6B00;
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+}
+
+/* Modal improvements */
+.modal-content {
+  animation: modalSlide 0.2s ease-out;
+}
+
+@keyframes modalSlide {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}

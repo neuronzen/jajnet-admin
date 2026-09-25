@@ -364,14 +364,18 @@ function openAddCustomer(){
     '<div class="form-row"><label>Address / Area</label><input id="acAddr" placeholder="Podoharbaid"></div>'+
     '<div class="form-row"><label>Package</label><select id="acPkg">'+Object.keys(PACKAGES).map(function(k){return '<option value="'+k+'">'+k+' — ৳'+PACKAGES[k]+'</option>'}).join('')+'</select></div>'+
     '<div class="form-grid-2">'+
-      '<div class="form-row"><label>Monthly Bill (৳)</label><input id="acPrice" type="number" value="525"></div>'+
-      '<div class="form-row"><label>Discount (৳)</label><input id="acDiscount" type="number" value="0" placeholder="0"></div>'+
-      '<div class="form-row"><label>Current Due (৳)</label><input id="acDue" type="number" value="525"></div>'+
+      '<div class="form-row"><label>Monthly Bill (৳)</label><input id="acPrice" type="number" value="" placeholder="e.g. 525"></div>'+
+      '<div class="form-row"><label>Discount (৳)</label><input id="acDiscount" type="number" value="" placeholder="0 (optional)"></div>'+
+      '<div class="form-row"><label>Current Due (৳)</label><input id="acDue" type="number" value="" placeholder="e.g. 525"></div>'+
     '</div>'+
     '<div class="form-row"><label>Status</label><select id="acStatus"><option value="active">Active</option><option value="due">Due</option><option value="expired">Expired</option></select></div>'+
     '<div class="modal-actions"><button class="btn btn-outline" id="acCancel" type="button">Cancel</button><button class="btn btn-primary" id="acSave" type="button">Add Customer</button></div>'
   );
-  $('#acPkg').onchange=function(){var v=PACKAGES[$('#acPkg').value];$('#acPrice').value=v;$('#acDue').value=v};
+  $('#acPkg').onchange=function(){
+    var v=PACKAGES[$('#acPkg').value];
+    if(!$('#acPrice').value)$('#acPrice').value=v;
+    if(!$('#acDue').value)$('#acDue').value=v;
+  };
   $('#acCancel').onclick=closeModal;
   $('#acSave').onclick=submitAddCustomer;
 }
@@ -415,77 +419,193 @@ async function submitAddCustomer(){
 }
 
 function openCustomerDetail(id){
-  var m=custCache.filter(function(c){return c.id===id})[0];
-  if(!m)return;
+  var m = custCache.filter(function(x){return x.id===id})[0];
+  if (!m) return;
+
+  var status = (m.status || 'active').toString();
+  var isSuspended = status === 'suspended';
+
   openModal(
-    '<div class="modal-title">👤 '+esc(m.name||'')+'</div>'+
-    
-    '<div class="form-row"><label>Name</label><input id="dcName" value="'+esc(m.name||'')+'"></div>'+
-    '<div class="form-row"><label>Mobile</label><input id="dcPhone" value="'+esc(m.phone||'')+'"></div>'+
-    '<div class="form-row"><label>Email</label><input value="'+esc(m.email||'')+'" disabled style="opacity:.6"></div>'+
-    '<div class="form-row"><label>Address</label><input id="dcAddr" value="'+esc(m.address||'')+'"></div>'+
-    '<div class="form-row"><label>Package</label><select id="dcPkg">'+Object.keys(PACKAGES).map(function(k){return '<option value="'+k+'" '+(k===m.package?'selected':'')+'>'+k+' — ৳'+PACKAGES[k]+'</option>'}).join('')+'</select></div>'+
-    '<div class="form-grid-2">'+
-      '<div class="form-row"><label>Monthly Bill (৳)</label><input id="dcPrice" type="number" value="'+(m.packagePrice||0)+'"></div>'+
-      '<div class="form-row"><label>Discount (৳)</label><input id="dcDiscount" type="number" value="'+(m.monthlyDiscount||0)+'" placeholder="0"></div>'+
-      '<div class="form-row"><label>Due Amount (৳)</label><input id="dcDue" type="number" value="'+(m.dueAmount||0)+'"></div>'+
-    '</div>'+
-    '<div class="form-row"><label>Status</label><select id="dcStatus">'+['active','due','expired'].map(function(s){return '<option value="'+s+'" '+(s===m.status?'selected':'')+'>'+s.charAt(0).toUpperCase()+s.slice(1)+'</option>'}).join('')+'</select></div>'+
-    '<button class="btn btn-success" id="dcCollect" type="button" style="width:100%;justify-content:center;margin-top:6px;margin-bottom:10px">Collect Payment</button>' +
-    '<div class="modal-actions"><button class="btn btn-outline" id="dcCancel" type="button">Cancel</button><button class="btn btn-primary" id="dcSave" type="button">Save Changes</button></div>' +
-    '<div class="modal-actions" style="margin-top:10px">'+
-      '<button class="btn btn-outline" id="dcSuspend" type="button" style="color:var(--warning);border-color:var(--warning)">⏸ Suspend</button>'+
-      '<button class="btn btn-outline" id="dcDelete" type="button" style="color:var(--error);border-color:var(--error)">🗑 Delete</button>'+
+    '<div class="modal-title" style="margin-bottom:6px">' + esc(m.name || '') + '</div>' +
+    '<div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">' +
+      '<span class="pill ' + (status==='active'?'pill-success':status==='due'?'pill-warning':status==='suspended'?'pill-warning':'pill-error') + '">' + status.toUpperCase() + '</span>' +
+      (m.customerId ? '<span class="pill pill-info">' + esc(m.customerId) + '</span>' : '') +
+    '</div>' +
+
+    '<div class="info-block">' +
+      '<div class="info-row"><span class="lbl">Mobile</span><span class="val">' + esc(m.phone || '-') + '</span></div>' +
+      '<div class="info-row"><span class="lbl">Email</span><span class="val">' + esc(m.email || '-') + '</span></div>' +
+      '<div class="info-row"><span class="lbl">Address</span><span class="val">' + esc(m.address || '-') + '</span></div>' +
+    '</div>' +
+
+    '<div class="info-block">' +
+      '<div class="info-row"><span class="lbl">Package</span><span class="val">' + esc(m.package || '-') + '</span></div>' +
+      '<div class="info-row"><span class="lbl">Monthly Bill</span><span class="val accent">৳' + (m.packagePrice||0) + '</span></div>' +
+      (Number(m.monthlyDiscount||0) > 0 ? '<div class="info-row"><span class="lbl">Discount</span><span class="val" style="color:#059669">- ৳' + m.monthlyDiscount + '</span></div>' : '') +
+      '<div class="info-row"><span class="lbl">Current Due</span><span class="val" style="color:' + (Number(m.dueAmount||0) > 0 ? '#EF4444' : '#059669') + '">৳' + (m.dueAmount||0) + '</span></div>' +
+    '</div>' +
+
+    '<div style="font-size:13px;font-weight:700;margin:18px 0 10px;color:#151A26">Actions</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px">' +
+
+      '<div class="action-btn collect" data-action="collect" data-id="' + m.id + '">' +
+        '<span class="icon">&#128176;</span>' +
+        '<span>Collect Payment</span>' +
+      '</div>' +
+
+      '<div class="action-btn edit" data-action="edit" data-id="' + m.id + '">' +
+        '<span class="icon">&#9998;</span>' +
+        '<span>Edit Details</span>' +
+      '</div>' +
+
+      '<div class="action-btn suspend" data-action="suspend" data-id="' + m.id + '">' +
+        '<span class="icon">' + (isSuspended ? '&#9654;' : '&#10074;&#10074;') + '</span>' +
+        '<span>' + (isSuspended ? 'Activate' : 'Suspend') + '</span>' +
+      '</div>' +
+
+      '<div class="action-btn delete" data-action="delete" data-id="' + m.id + '">' +
+        '<span class="icon">&#128465;</span>' +
+        '<span>Delete</span>' +
+      '</div>' +
+
+    '</div>' +
+
+    '<div class="modal-actions" style="margin-top:14px">' +
+      '<button class="btn btn-outline" id="dcClose" type="button" style="flex:1;justify-content:center">Close</button>' +
     '</div>'
   );
-  $('#dcCollect').onclick = function(){
-  collectPayment(id, m.name || '', Number(m.dueAmount || 0));
-};
-  $('#dcCancel').onclick=closeModal;
-  $('#dcSuspend').onclick=function(){
-    var curStatus = (m.status || 'active').toString();
-    var newStatus = (curStatus === 'suspended') ? 'active' : 'suspended';
-    var actionText = (newStatus === 'suspended') ? 'Suspend' : 'Activate';
-    if (!confirm(actionText + ' this customer?')) return;
+
+  document.querySelector('#dcClose').onclick = closeModal;
+
+  // Action button handlers
+  document.querySelectorAll('.action-btn').forEach(function(btn){
+    btn.onclick = function(){
+      var action = btn.dataset.action;
+      var cid = btn.dataset.id;
+      if (action === 'collect') { closeModal(); collectPayment(cid, m.name||'', Number(m.dueAmount||0)); }
+      else if (action === 'edit') { closeModal(); setTimeout(function(){ openCustomerEdit(cid); }, 200); }
+      else if (action === 'suspend') { doSuspend(cid, m.status); }
+      else if (action === 'delete') { doDelete(cid, m.name||''); }
+    };
+  });
+}
+
+// ============ New: Suspend/Delete helper functions ============
+function doSuspend(id, curStatus){
+  var newStatus = (curStatus === 'suspended') ? 'active' : 'suspended';
+  var actionText = (newStatus === 'suspended') ? 'Suspend' : 'Activate';
+  openModal(
+    '<div class="modal-title">' + actionText + ' Customer</div>' +
+    '<div style="text-align:center;padding:10px 0 20px">' +
+      '<div class="stat-icon stat-warning" style="width:64px;height:64px;font-size:30px;margin:0 auto 14px;border-radius:50%">' +
+        (newStatus === 'suspended' ? '&#10074;&#10074;' : '&#9654;') +
+      '</div>' +
+      '<div style="font-weight:700;font-size:15px">' + (newStatus === 'suspended' ? 'Suspend this customer?' : 'Activate this customer?') + '</div>' +
+      '<div style="color:var(--grey);font-size:13px;margin-top:6px">' + (newStatus === 'suspended' ? 'They will not be able to login to the app.' : 'They will be able to login again.') + '</div>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-outline" id="suspendCancel" type="button">Cancel</button>' +
+      '<button class="btn ' + (newStatus === 'suspended' ? 'btn-outline' : 'btn-success') + '" id="suspendConfirm" type="button" style="' + (newStatus === 'suspended' ? 'color:#F59E0B;border-color:#F59E0B' : '') + '">' + actionText + '</button>' +
+    '</div>'
+  );
+  document.querySelector('#suspendCancel').onclick = closeModal;
+  document.querySelector('#suspendConfirm').onclick = function(){
+    this.disabled = true;
+    this.textContent = '...';
     db.collection('users').doc(id).update({status: newStatus}).then(function(){
+      closeModal();
       toast('Customer ' + (newStatus === 'suspended' ? 'suspended' : 'activated'), 'success');
-      closeModal();
       renderCustomers();
     }).catch(function(e){
       console.error(e); toast('Failed: ' + e.message, 'error');
     });
   };
-  $('#dcDelete').onclick=function(){
-    if (!confirm('Delete this customer?\n\nPayment history will remain but the customer will be hidden.')) return;
-    if (!confirm('Are you absolutely sure? This cannot be undone.')) return;
+}
+
+function doDelete(id, name){
+  openModal(
+    '<div class="modal-title">Delete Customer</div>' +
+    '<div style="text-align:center;padding:10px 0 20px">' +
+      '<div class="stat-icon stat-error" style="width:64px;height:64px;font-size:30px;margin:0 auto 14px;border-radius:50%">&#128465;</div>' +
+      '<div style="font-weight:700;font-size:15px">' + esc(name) + '</div>' +
+      '<div style="color:var(--grey);font-size:13px;margin-top:6px">This customer will be hidden from the list.</div>' +
+    '</div>' +
+    '<div style="background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.2);padding:14px;border-radius:12px;margin-bottom:18px">' +
+      '<div style="color:#FF4757;font-size:13px;line-height:1.6;font-weight:600">⚠ Warning</div>' +
+      '<div style="color:#8A92A0;font-size:12px;line-height:1.6;margin-top:4px">Payment history will remain. This cannot be undone from the app.</div>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-outline" id="delCancel" type="button">Cancel</button>' +
+      '<button class="btn" id="delConfirm" type="button" style="background:#FF4757;color:#fff;flex:1">Delete</button>' +
+    '</div>'
+  );
+  document.querySelector('#delCancel').onclick = closeModal;
+  document.querySelector('#delConfirm').onclick = function(){
+    this.disabled = true;
+    this.textContent = 'Deleting...';
     db.collection('users').doc(id).update({status: 'deleted'}).then(function(){
-      toast('Customer deleted', 'success');
       closeModal();
+      toast('Customer deleted', 'success');
       renderCustomers();
     }).catch(function(e){
       console.error(e); toast('Failed: ' + e.message, 'error');
     });
   };
-  $('#dcPkg').onchange=function(){var v=PACKAGES[$('#dcPkg').value];$('#dcPrice').value=v};
-  $('#dcSave').onclick=function(){
-    var btn=$('#dcSave');btn.disabled=true;btn.textContent='Saving...';
+}
+
+// ============ New: Separate Edit Modal ============
+function openCustomerEdit(id){
+  var m = custCache.filter(function(x){return x.id===id})[0];
+  if (!m) return;
+  openModal(
+    '<div class="modal-title">Edit Customer</div>' +
+    '<div class="form-row"><label>Name</label><input id="ecName" value="' + esc(m.name||'') + '" placeholder="Full name"></div>' +
+    '<div class="form-row"><label>Mobile</label><input id="ecPhone" value="' + esc(m.phone||'') + '" placeholder="01XXXXXXXXX"></div>' +
+    '<div class="form-row"><label>Email</label><input value="' + esc(m.email||'') + '" disabled style="opacity:.6"></div>' +
+    '<div class="form-row"><label>Address</label><input id="ecAddr" value="' + esc(m.address||'') + '" placeholder="Address / Area"></div>' +
+    '<div class="form-row"><label>Package</label><select id="ecPkg">' +
+      Object.keys(PACKAGES).map(function(k){return '<option value="'+k+'" '+(k===m.package?'selected':'')+'>'+k+' — ৳'+PACKAGES[k]+'</option>'}).join('') +
+    '</select></div>' +
+    '<div class="form-grid-2">' +
+      '<div class="form-row"><label>Monthly Bill (৳)</label><input id="ecPrice" type="number" value="' + (m.packagePrice||'') + '" placeholder="525"></div>' +
+      '<div class="form-row"><label>Discount (৳)</label><input id="ecDiscount" type="number" value="' + (m.monthlyDiscount||'') + '" placeholder="0 (optional)"></div>' +
+    '</div>' +
+    '<div class="form-row"><label>Due Amount (৳)</label><input id="ecDue" type="number" value="' + (m.dueAmount||'') + '" placeholder="0"></div>' +
+    '<div class="form-row"><label>Status</label><select id="ecStatus">' +
+      ['active','due','expired'].map(function(s){return '<option value="'+s+'" '+(s===m.status?'selected':'')+'>'+s.charAt(0).toUpperCase()+s.slice(1)+'</option>'}).join('') +
+    '</select></div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-outline" id="ecCancel" type="button">Cancel</button>' +
+      '<button class="btn btn-primary" id="ecSave" type="button">Save Changes</button>' +
+    '</div>'
+  );
+  document.querySelector('#ecCancel').onclick = closeModal;
+  document.querySelector('#ecPkg').onchange = function(){
+    var v = PACKAGES[document.querySelector('#ecPkg').value];
+    document.querySelector('#ecPrice').value = v;
+  };
+  document.querySelector('#ecSave').onclick = function(){
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
     db.collection('users').doc(id).update({
-      name:$('#dcName').value.trim(),
-      phone:$('#dcPhone').value.trim(),
-      address:$('#dcAddr').value.trim(),
-      package:$('#dcPkg').value,
-      packagePrice:Number($('#dcPrice').value)||0,
-      dueAmount:Number($('#dcDue').value)||0,
-      monthlyDiscount:Number($('#dcDiscount').value)||0,
-      status:$('#dcStatus').value
+      name: document.querySelector('#ecName').value.trim(),
+      phone: document.querySelector('#ecPhone').value.trim(),
+      address: document.querySelector('#ecAddr').value.trim(),
+      package: document.querySelector('#ecPkg').value,
+      packagePrice: Number(document.querySelector('#ecPrice').value)||0,
+      monthlyDiscount: Number(document.querySelector('#ecDiscount').value)||0,
+      dueAmount: Number(document.querySelector('#ecDue').value)||0,
+      status: document.querySelector('#ecStatus').value
     }).then(function(){
       closeModal();
-      toast('Customer info saved ✅','success');
+      toast('Customer updated', 'success');
       renderCustomers();
     }).catch(function(e){
       console.error(e);
-      toast('Failed to save','error');
-      btn.disabled=false;btn.textContent='Save Changes';
+      toast('Failed: ' + e.message, 'error');
+      btn.disabled = false;
+      btn.textContent = 'Save Changes';
     });
   };
 }
